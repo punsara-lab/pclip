@@ -1,0 +1,1198 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PClip · Media Downloader</title>
+  <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-0: #0a0a0f;
+      --bg-1: #11121a;
+      --bg-2: #161823;
+      --bg-3: #1c1f2e;
+      --surface: rgba(28, 31, 46, 0.7);
+      --surface-hover: rgba(38, 42, 61, 0.85);
+      --border: rgba(120, 128, 170, 0.15);
+      --border-hover: rgba(160, 170, 220, 0.3);
+      --fg: #e8e9f3;
+      --fg-muted: #8a8fb0;
+      --fg-dim: #5d6286;
+      --accent-0: #7c5cff;
+      --accent-1: #a78bfa;
+      --accent-2: #c4b5fd;
+      --accent-soft: rgba(124, 92, 255, 0.12);
+      --accent-ring: rgba(124, 92, 255, 0.35);
+      --success: #34d399;
+      --success-soft: rgba(52, 211, 153, 0.12);
+      --error: #f87171;
+      --error-soft: rgba(248, 113, 113, 0.12);
+      --warning: #fbbf24;
+      --radius-sm: 8px;
+      --radius-md: 12px;
+      --radius-lg: 18px;
+      --radius-xl: 24px;
+      --shadow-sm: 0 2px 8px rgba(0,0,0,0.3);
+      --shadow-md: 0 8px 32px rgba(0,0,0,0.4);
+      --shadow-lg: 0 16px 48px rgba(0,0,0,0.55);
+      --shimmer: linear-gradient(90deg, var(--bg-2) 25%, var(--bg-3) 50%, var(--bg-2) 75%);
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      background: var(--bg-0);
+      color: var(--fg);
+      min-height: 100vh;
+      overflow-x: hidden;
+      position: relative;
+    }
+    body::before {
+      content: '';
+      position: fixed;
+      top: -50%;
+      left: -20%;
+      width: 80%;
+      height: 120%;
+      background: radial-gradient(circle at 30% 20%, rgba(124, 92, 255, 0.08) 0%, transparent 50%),
+                  radial-gradient(circle at 70% 80%, rgba(167, 139, 250, 0.05) 0%, transparent 50%);
+      pointer-events: none;
+      z-index: 0;
+    }
+    body::after {
+      content: '';
+      position: fixed;
+      inset: 0;
+      opacity: 0.4;
+      pointer-events: none;
+      background-image:
+        linear-gradient(rgba(255,255,255,0.012) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.012) 1px, transparent 1px);
+      background-size: 48px 48px;
+      z-index: 0;
+    }
+    .page {
+      max-width: 780px;
+      margin: 0 auto;
+      padding: 56px 28px 96px;
+      position: relative;
+      z-index: 1;
+    }
+    .brand {
+      margin-bottom: 48px;
+      text-align: center;
+      position: relative;
+    }
+    .brand-logo {
+      width: 64px;
+      height: 64px;
+      margin: 0 auto 20px;
+      border-radius: 18px;
+      background: linear-gradient(135deg, var(--accent-0) 0%, var(--accent-1) 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 8px 32px rgba(124, 92, 255, 0.35), inset 0 1px 0 rgba(255,255,255,0.2);
+      position: relative;
+    }
+    .brand-logo::after {
+      content: '';
+      position: absolute;
+      inset: -2px;
+      border-radius: 20px;
+      background: linear-gradient(135deg, rgba(124,92,255,0.4), rgba(167,139,250,0.1));
+      filter: blur(12px);
+      opacity: 0.5;
+      z-index: -1;
+    }
+    .brand-logo svg { width: 32px; height: 32px; display: block; }
+    .brand h1 {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 3.2rem;
+      font-weight: 600;
+      letter-spacing: -0.035em;
+      line-height: 1;
+      background: linear-gradient(135deg, var(--fg) 0%, var(--fg-muted) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 10px;
+    }
+    .brand h1 span {
+      background: linear-gradient(135deg, var(--accent-1) 0%, var(--accent-0) 60%, var(--accent-2) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      font-weight: 500;
+    }
+    .brand p {
+      font-size: 0.82rem;
+      color: var(--fg-muted);
+      letter-spacing: 0.02em;
+      font-weight: 400;
+    }
+    .brand p strong {
+      color: var(--accent-1);
+      font-weight: 500;
+    }
+    .input-wrap {
+      position: relative;
+      margin-bottom: 8px;
+    }
+    .input-wrap.has-content .clear-btn { opacity: 1; pointer-events: auto; }
+    .clear-btn {
+      position: absolute;
+      right: 14px;
+      top: 16px;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid var(--border);
+      color: var(--fg-dim);
+      cursor: pointer;
+      padding: 6px;
+      opacity: 0;
+      pointer-events: none;
+      transition: all 0.2s ease;
+      border-radius: 8px;
+      backdrop-filter: blur(10px);
+    }
+    .clear-btn:hover { color: var(--fg); background: rgba(255,255,255,0.1); border-color: var(--border-hover); transform: scale(1.05); }
+    .clear-btn svg { width: 14px; height: 14px; display: block; }
+    textarea {
+      width: 100%;
+      padding: 18px 46px 18px 22px;
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius-lg);
+      background: var(--surface);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      color: var(--fg);
+      font-family: 'Inter', sans-serif;
+      font-size: 0.95rem;
+      line-height: 1.6;
+      outline: none;
+      resize: vertical;
+      min-height: 64px;
+      max-height: 200px;
+      transition: border-color 0.25s ease, box-shadow 0.25s ease, background 0.25s ease;
+      box-shadow: var(--shadow-sm), inset 0 1px 0 rgba(255,255,255,0.03);
+      font-weight: 400;
+    }
+    textarea:focus {
+      border-color: var(--accent-0);
+      background: rgba(28, 31, 46, 0.9);
+      box-shadow: 0 0 0 4px var(--accent-ring), var(--shadow-md);
+    }
+    textarea::placeholder { color: var(--fg-dim); }
+    .hint {
+      font-size: 0.75rem;
+      color: var(--fg-muted);
+      margin-bottom: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 0 4px;
+    }
+    .hint .kb-hint {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      padding: 4px 10px;
+      border-radius: 8px;
+      font-size: 0.7rem;
+      backdrop-filter: blur(10px);
+    }
+    .kbd {
+      font-family: 'JetBrains Mono', monospace;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid var(--border);
+      padding: 2px 7px;
+      border-radius: 6px;
+      font-size: 0.68rem;
+      color: var(--fg-muted);
+    }
+    .controls {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .control-block { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .control-label {
+      font-size: 0.68rem;
+      color: var(--fg-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      font-weight: 500;
+      margin-right: 2px;
+      white-space: nowrap;
+    }
+    .pill-group {
+      display: flex;
+      padding: 4px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      background: var(--surface);
+      backdrop-filter: blur(10px);
+      box-shadow: var(--shadow-sm);
+      flex-shrink: 0;
+      gap: 2px;
+    }
+    .pill {
+      padding: 9px 18px;
+      font-family: 'Inter', sans-serif;
+      font-size: 0.78rem;
+      font-weight: 500;
+      border: none;
+      background: transparent;
+      color: var(--fg-muted);
+      cursor: pointer;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      letter-spacing: 0.01em;
+      white-space: nowrap;
+      border-radius: 8px;
+    }
+    .pill:hover:not(.active) { color: var(--fg); background: rgba(255,255,255,0.04); }
+    .pill.active {
+      background: linear-gradient(135deg, var(--accent-0) 0%, #6d4cff 100%);
+      color: #fff;
+      box-shadow: 0 2px 12px rgba(124, 92, 255, 0.35);
+    }
+    .pill.aq { padding: 9px 14px; font-size: 0.74rem; }
+    .pill.aq::after {
+      content: "kbps";
+      margin-left: 3px;
+      opacity: 0.65;
+      font-size: 0.66rem;
+      font-weight: 400;
+    }
+    .fetch-btn {
+      flex: 1;
+      min-width: 130px;
+      padding: 11px 24px;
+      border: 1px solid transparent;
+      border-radius: var(--radius-md);
+      background: linear-gradient(135deg, var(--accent-0) 0%, #6d4cff 100%);
+      color: #fff;
+      font-family: 'Inter', sans-serif;
+      font-size: 0.86rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      letter-spacing: 0.01em;
+      box-shadow: 0 4px 20px rgba(124, 92, 255, 0.35), inset 0 1px 0 rgba(255,255,255,0.15);
+      position: relative;
+      overflow: hidden;
+    }
+    .fetch-btn::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, rgba(255,255,255,0.15) 0%, transparent 50%);
+      opacity: 0;
+      transition: opacity 0.25s;
+    }
+    .fetch-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 8px 28px rgba(124, 92, 255, 0.45), inset 0 1px 0 rgba(255,255,255,0.2);
+    }
+    .fetch-btn:hover::before { opacity: 1; }
+    .fetch-btn:active { transform: translateY(0px); }
+    .fetch-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: 0 2px 12px rgba(124, 92, 255, 0.2); }
+    .stats-bar {
+      display: flex;
+      gap: 20px;
+      margin: 18px 0 6px;
+      padding: 12px 18px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      font-size: 0.74rem;
+      color: var(--fg-muted);
+      align-items: center;
+      flex-wrap: wrap;
+      backdrop-filter: blur(12px);
+      box-shadow: var(--shadow-sm);
+    }
+    .stats-bar .stat { display: flex; align-items: center; gap: 7px; }
+    .stat strong {
+      color: var(--fg);
+      font-weight: 600;
+      font-size: 0.82rem;
+      font-family: 'Space Grotesk', sans-serif;
+      padding: 2px 8px;
+      background: rgba(255,255,255,0.04);
+      border-radius: 6px;
+      border: 1px solid var(--border);
+    }
+    .stat-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--fg-dim); box-shadow: 0 0 8px currentColor; }
+    .stat-dot.ready { background: var(--fg); box-shadow: 0 0 10px rgba(232,233,243,0.5); }
+    .stat-dot.downloading { background: var(--accent-1); animation: pulse 1.4s ease-in-out infinite; box-shadow: 0 0 12px rgba(167,139,250,0.6); }
+    .stat-dot.done { background: var(--success); box-shadow: 0 0 12px rgba(52,211,153,0.6); }
+    .stat-dot.error { background: var(--error); box-shadow: 0 0 12px rgba(248,113,113,0.6); }
+    @keyframes pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.5; transform: scale(0.85); } }
+    .cards { margin-top: 22px; }
+    .card {
+      display: flex;
+      gap: 16px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      background: var(--surface);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      padding: 16px;
+      margin-bottom: 12px;
+      box-shadow: var(--shadow-sm);
+      animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .card:hover {
+      border-color: var(--border-hover);
+      background: var(--surface-hover);
+      box-shadow: var(--shadow-md);
+      transform: translateY(-1px);
+    }
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(14px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .card-thumb {
+      width: 150px;
+      min-width: 150px;
+      height: 96px;
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      background: var(--bg-3);
+      flex-shrink: 0;
+      position: relative;
+      border: 1px solid var(--border);
+    }
+    .card-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .card-thumb .duration-badge {
+      position: absolute;
+      bottom: 6px;
+      right: 6px;
+      background: rgba(10, 10, 15, 0.88);
+      color: var(--fg);
+      font-size: 0.65rem;
+      padding: 3px 8px;
+      border-radius: 6px;
+      letter-spacing: 0.01em;
+      font-weight: 500;
+      backdrop-filter: blur(8px);
+      border: 1px solid var(--border);
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .card-thumb .no-thumb {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--fg-dim);
+    }
+    .card-thumb .no-thumb svg { width: 34px; height: 34px; opacity: 0.7; }
+    .card-thumb .no-thumb.audio-icon { color: var(--accent-1); }
+    .card-thumb.loading {
+      background: var(--shimmer);
+      background-size: 200% 100%;
+      animation: shimmer 1.6s infinite;
+    }
+    .skeleton-line {
+      height: 14px;
+      border-radius: 6px;
+      background: var(--shimmer);
+      background-size: 200% 100%;
+      animation: shimmer 1.6s infinite;
+      margin-bottom: 8px;
+    }
+    .skeleton-line.short { width: 40%; height: 11px; }
+    .skeleton-line.medium { width: 75%; }
+    @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+    .card-body {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 8px;
+    }
+    .card-title {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 1rem;
+      font-weight: 500;
+      line-height: 1.35;
+      color: var(--fg);
+      overflow: hidden;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      letter-spacing: -0.01em;
+    }
+    .card-meta {
+      font-size: 0.72rem;
+      color: var(--fg-muted);
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .meta-dot { width: 3px; height: 3px; border-radius: 50%; background: var(--fg-dim); opacity: 0.7; }
+    .meta-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 9px;
+      border-radius: 6px;
+      background: rgba(255,255,255,0.05);
+      font-size: 0.66rem;
+      font-weight: 500;
+      border: 1px solid var(--border);
+    }
+    .meta-badge.audio-badge {
+      background: var(--accent-soft);
+      color: var(--accent-1);
+      border-color: rgba(124,92,255,0.25);
+    }
+    .card-actions {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+      margin-top: 4px;
+    }
+    .card-dl-btn {
+      padding: 8px 16px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: rgba(255,255,255,0.04);
+      color: var(--fg);
+      font-family: 'Inter', sans-serif;
+      font-size: 0.76rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      letter-spacing: 0.01em;
+    }
+    .card-dl-btn:hover {
+      background: rgba(255,255,255,0.08);
+      border-color: var(--border-hover);
+      transform: translateY(-0.5px);
+    }
+    .card-dl-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+    .card-dl-btn.done {
+      background: var(--success-soft);
+      color: var(--success);
+      border-color: rgba(52,211,153,0.3);
+    }
+    .card-dl-btn.done:hover {
+      background: rgba(52, 211, 153, 0.2);
+    }
+    .card-dl-btn.error {
+      background: var(--error-soft);
+      color: var(--error);
+      border-color: rgba(248,113,113,0.3);
+    }
+    .card-dl-btn.error:hover {
+      background: rgba(248, 113, 113, 0.2);
+    }
+    .card-status {
+      font-size: 0.72rem;
+      color: var(--fg-muted);
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .card-status.downloading { color: var(--accent-1); }
+    .card-status.done { color: var(--success); }
+    .card-status.error { color: var(--error); }
+    .q-chip {
+      padding: 5px 11px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: transparent;
+      color: var(--fg-muted);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.68rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      font-weight: 500;
+    }
+    .q-chip:hover:not(.active) { border-color: var(--border-hover); color: var(--fg); background: rgba(255,255,255,0.04); }
+    .q-chip.active {
+      border-color: rgba(167,139,250,0.4);
+      color: var(--accent-1);
+      background: var(--accent-soft);
+      font-weight: 600;
+    }
+    .q-chip.audio-chip::after {
+      content: "kbps";
+      margin-left: 2px;
+      opacity: 0.6;
+      font-size: 0.64rem;
+      font-weight: 400;
+    }
+    .q-chip.audio-chip.active.override {
+      border-color: rgba(167,139,250,0.6) !important;
+      background: var(--accent-soft) !important;
+      color: var(--accent-2) !important;
+      font-weight: 600;
+      position: relative;
+      box-shadow: 0 0 12px rgba(124,92,255,0.15);
+    }
+    .q-chip.audio-chip.active.override::before {
+      content: '';
+      position: absolute;
+      top: -3px;
+      right: -3px;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--accent-1);
+      border: 1.5px solid var(--bg-2);
+      box-shadow: 0 0 8px rgba(167,139,250,0.7);
+    }
+    .card.card-error {
+      border-color: rgba(248, 113, 113, 0.25);
+      background: rgba(248, 113, 113, 0.04);
+    }
+    .card-error-icon {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--error-soft);
+      color: var(--error);
+    }
+    .card-error-icon svg { width: 28px; height: 28px; }
+    .card-error-msg { font-size: 0.78rem; color: var(--error); margin-top: 3px; line-height: 1.45; }
+    .card-error-url { font-size: 0.65rem; color: var(--fg-dim); word-break: break-all; margin-top: 5px; font-family: 'JetBrains Mono', monospace; }
+    .dl-all-bar {
+      display: flex;
+      gap: 12px;
+      margin-top: 20px;
+      padding: 14px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      backdrop-filter: blur(16px);
+      box-shadow: var(--shadow-md), 0 0 40px rgba(124,92,255,0.06);
+      animation: slideUp 0.35s ease;
+      position: sticky;
+      bottom: 16px;
+      z-index: 10;
+    }
+    .dl-all-btn {
+      flex: 1;
+      padding: 12px;
+      border: 1px solid transparent;
+      border-radius: var(--radius-md);
+      background: linear-gradient(135deg, var(--fg) 0%, var(--fg-muted) 100%);
+      color: var(--bg-0);
+      font-family: 'Inter', sans-serif;
+      font-size: 0.84rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      letter-spacing: 0.01em;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+    }
+    .dl-all-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+    }
+    .dl-all-btn:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+    .dl-all-info {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.72rem;
+      color: var(--fg-muted);
+      padding: 0 10px;
+      font-weight: 500;
+    }
+    .spin {
+      display: inline-block;
+      width: 11px; height: 11px;
+      border: 2px solid currentColor;
+      border-right-color: transparent;
+      border-radius: 50%;
+      animation: spin 0.65s linear infinite;
+      vertical-align: middle;
+      margin-right: 6px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .toast {
+      position: fixed;
+      bottom: 32px;
+      left: 50%;
+      transform: translateX(-50%) translateY(24px);
+      background: var(--bg-3);
+      color: var(--fg);
+      padding: 12px 22px;
+      border-radius: var(--radius-md);
+      font-size: 0.82rem;
+      font-weight: 500;
+      opacity: 0;
+      pointer-events: none;
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      z-index: 100;
+      box-shadow: var(--shadow-lg);
+      border: 1px solid var(--border);
+      backdrop-filter: blur(20px);
+    }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+    .toast.success {
+      background: var(--success-soft);
+      color: var(--success);
+      border-color: rgba(52,211,153,0.3);
+    }
+    .toast.error {
+      background: var(--error-soft);
+      color: var(--error);
+      border-color: rgba(248,113,113,0.3);
+    }
+    .footer {
+      margin-top: 56px;
+      text-align: center;
+      font-size: 0.7rem;
+      color: var(--fg-dim);
+      line-height: 2;
+      font-weight: 400;
+    }
+    .footer .sites {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 6px 14px;
+      margin-bottom: 14px;
+    }
+    .footer .sites span {
+      padding: 4px 10px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      font-size: 0.68rem;
+      color: var(--fg-muted);
+      backdrop-filter: blur(8px);
+      transition: all 0.2s;
+    }
+    .footer .sites span:hover {
+      border-color: var(--border-hover);
+      color: var(--fg);
+    }
+    .footer .copyright {
+      margin-top: 10px;
+      padding-top: 18px;
+      border-top: 1px solid var(--border);
+    }
+    .footer .copyright strong {
+      color: var(--accent-1);
+      font-weight: 500;
+    }
+    @media (max-width: 600px) {
+      .page { padding: 36px 16px 72px; }
+      .brand { margin-bottom: 36px; }
+      .brand h1 { font-size: 2.4rem; }
+      .brand-logo { width: 56px; height: 56px; border-radius: 16px; margin-bottom: 16px; }
+      .brand-logo svg { width: 28px; height: 28px; }
+      .card { flex-direction: column; gap: 12px; padding: 14px; }
+      .card-thumb { width: 100%; min-width: unset; height: 190px; }
+      .controls { flex-direction: column; align-items: stretch; }
+      .pill-group { justify-content: center; }
+      .pill { flex: 1; text-align: center; padding: 10px 12px; }
+      .pill.aq::after { display: none; }
+      .fetch-btn { width: 100%; padding: 12px; }
+      .control-label { display: none; }
+      .dl-all-bar { flex-direction: column; }
+      .dl-all-info { justify-content: center; padding: 0; }
+      .stats-bar { gap: 14px; padding: 10px 14px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="brand">
+      <div class="brand-logo">
+        <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M23 7l-7 5 7 5V7z"/>
+          <rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
+        </svg>
+      </div>
+      <h1>P<span>Clip</span></h1>
+      <p>Media downloader by <strong>Punsara</strong> · 1000+ sites supported</p>
+    </div>
+    <div class="input-wrap" id="inputWrap">
+      <textarea id="urls" placeholder="Paste one or more URLs..." rows="2" autofocus></textarea>
+      <button class="clear-btn" id="clearBtn" onclick="clearUrls()" title="Clear all">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <p class="hint">
+      <span>Separate multiple links with spaces, commas, or newlines.</span>
+      <span class="kb-hint"><span class="kbd">Ctrl</span>+<span class="kbd">Enter</span> Fetch</span>
+    </p>
+    <div class="controls">
+      <div class="control-block">
+        <span class="control-label">Format</span>
+        <div class="pill-group" id="formatGroup">
+          <button class="pill active" data-format="video" onclick="setFormat(this, 'video')" title="MP4 video">MP4</button>
+          <button class="pill" data-format="audio" onclick="setFormat(this, 'audio')" title="MP3 audio with cover art">MP3</button>
+        </div>
+      </div>
+      <div class="control-block" id="audioQualityBlock" style="display:none">
+        <span class="control-label">Quality</span>
+        <div class="pill-group" id="audioQualityGroup">
+          <button class="pill aq" data-quality="128K" onclick="setAudioQuality(this)" title="Smaller file">128</button>
+          <button class="pill aq active" data-quality="192K" onclick="setAudioQuality(this)" title="Balanced">192</button>
+          <button class="pill aq" data-quality="256K" onclick="setAudioQuality(this)" title="High quality">256</button>
+          <button class="pill aq" data-quality="320K" onclick="setAudioQuality(this)" title="Maximum quality">320</button>
+        </div>
+      </div>
+      <button class="fetch-btn" id="goBtn" onclick="go()">Fetch</button>
+    </div>
+    <div class="stats-bar" id="statsBar" style="display:none">
+      <div class="stat"><span class="stat-dot ready"></span> Ready <strong id="stat-ready">0</strong></div>
+      <div class="stat"><span class="stat-dot downloading"></span> Downloading <strong id="stat-dling">0</strong></div>
+      <div class="stat"><span class="stat-dot done"></span> Done <strong id="stat-done">0</strong></div>
+      <div class="stat"><span class="stat-dot error"></span> Errors <strong id="stat-error">0</strong></div>
+    </div>
+    <div id="cards" class="cards"></div>
+    <div class="toast" id="toast"></div>
+    <div class="footer">
+      <div class="sites">
+        <span>YouTube</span><span>TikTok</span><span>Instagram</span><span>Twitter/X</span>
+        <span>Reddit</span><span>Facebook</span><span>Vimeo</span><span>Twitch</span>
+        <span>Dailymotion</span><span>SoundCloud</span><span>Loom</span><span>Streamable</span>
+      </div>
+      <div style="opacity:0.7; margin: 6px 0;">Pinterest · Tumblr · Threads · LinkedIn · and 1000+ more sites</div>
+      <div class="copyright">Built with <strong>♥</strong> · <strong>pclip</strong> · punsara-lab</div>
+    </div>
+  </div>
+  <script>
+    'use strict';
+    const AUDIO_QUALITIES = [
+      { id: '128K', label: '128', hint: 'Small' },
+      { id: '192K', label: '192', hint: 'Good' },
+      { id: '256K', label: '256', hint: 'Better' },
+      { id: '320K', label: '320', hint: 'Best' },
+    ];
+    const state = {
+      format: 'video',
+      audioQuality: '192K',
+      cards: [],
+      infoCache: new Map(),
+      pollTimers: new Map(),
+    };
+    const $ = (s, r = document) => r.querySelector(s);
+    const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+
+    function toast(msg, type, ms) {
+      const t = $('#toast');
+      t.textContent = msg;
+      t.className = 'toast show ' + (type || '');
+      clearTimeout(toast._t);
+      toast._t = setTimeout(() => t.className = 'toast', ms || 2400);
+    }
+    function showAudioUI(show) {
+      const block = $('#audioQualityBlock');
+      block.style.display = show ? 'flex' : 'none';
+    }
+    function setFormat(btn, format) {
+      $$('#formatGroup .pill').forEach(b => b.classList.toggle('active', b === btn));
+      state.format = format;
+      showAudioUI(format === 'audio');
+      state.cards.forEach((_, idx) => renderCard(idx));
+      updateStats();
+    }
+    function setAudioQuality(btn) {
+      $$('#audioQualityGroup .pill.aq').forEach(b => b.classList.toggle('active', b === btn));
+      const q = btn.dataset.quality;
+      state.audioQuality = q;
+      let changed = 0;
+      state.cards.forEach((c, idx) => {
+        if (!c || !c.selectedAudioQuality) return;
+        if (!c.__audioTouched) {
+          c.selectedAudioQuality = q;
+          changed++;
+          renderCard(idx);
+        }
+      });
+      if (changed) toast('Applied ' + q.replace('K','') + ' kbps to ' + changed + ' card' + (changed === 1 ? '' : 's'));
+    }
+    function pickAudioQuality(idx, qualityId) {
+      state.cards[idx].selectedAudioQuality = qualityId;
+      state.cards[idx].__audioTouched = true;
+      renderCard(idx);
+    }
+    function pickFormat(idx, formatId) {
+      state.cards[idx].selectedFormatId = formatId;
+      renderCard(idx);
+    }
+    function parseUrls(text) {
+      return [...new Set(text.split(/[\s,]+/).map(u => u.trim()).filter(u => u.startsWith('http')))];
+    }
+    function fmtDur(s) {
+      if (!s) return '';
+      s = Math.max(0, Math.floor(s));
+      const h = Math.floor(s / 3600);
+      const m = Math.floor((s % 3600) / 60);
+      const sec = s % 60;
+      const pad = n => n.toString().padStart(2, '0');
+      return h > 0 ? h + ':' + pad(m) + ':' + pad(sec) : m + ':' + pad(sec);
+    }
+    function esc(s) {
+      const d = document.createElement('div');
+      d.textContent = s == null ? '' : s;
+      return d.innerHTML;
+    }
+    function friendlyError(err) {
+      const e = (err || '').toString();
+      const map = [
+        ['Unsupported URL', 'This URL is not supported'],
+        ['Video unavailable', 'Video is unavailable or private'],
+        ['Private video', 'This video is private'],
+        ['HTTP Error 403', 'Access denied by the platform'],
+        ['HTTP Error 404', 'Video not found'],
+        ['copyright', 'Video blocked due to copyright'],
+        ['geo', 'Video not available in your region'],
+        ['timed out', 'Request timed out \u2014 try again'],
+        ['Timed out', 'Request timed out \u2014 try again'],
+        ['network', 'Network error \u2014 check connection'],
+        ['Network', 'Network error \u2014 check connection'],
+      ];
+      for (const [k, v] of map) if (e.includes(k)) return v;
+      return e.length > 80 ? e.slice(0, 78) + '\u2026' : e;
+    }
+    function updateStats() {
+      const bar = $('#statsBar');
+      if (state.cards.length === 0) { bar.style.display = 'none'; return; }
+      bar.style.display = 'flex';
+      const counts = { ready: 0, downloading: 0, done: 0, error: 0 };
+      for (const c of state.cards) {
+        if (counts[c.status] != null) counts[c.status]++;
+        else if (c.status === 'info-error') counts.error++;
+        else if (c.status === 'loading') counts.downloading++;
+      }
+      $('#stat-ready').textContent = counts.ready;
+      $('#stat-dling').textContent = counts.downloading;
+      $('#stat-done').textContent = counts.done;
+      $('#stat-error').textContent = counts.error;
+    }
+    function clearUrls() {
+      const ta = $('#urls');
+      ta.value = '';
+      ta.focus();
+      $('#inputWrap').classList.remove('has-content');
+    }
+    function resizeTextarea(e) {
+      const ta = e.target;
+      ta.style.height = 'auto';
+      ta.style.height = Math.min(ta.scrollHeight, 200) + 'px';
+      $('#inputWrap').classList.toggle('has-content', ta.value.trim().length > 0);
+    }
+    $('#urls').addEventListener('input', resizeTextarea);
+    $('#urls').addEventListener('keydown', e => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); go(); return; }
+      if (e.key === 'Enter' && !e.shiftKey && !$('#urls').value.includes('\n')) { e.preventDefault(); go(); }
+    });
+
+    async function expandPlaylists(urls) {
+      for (let i = 0; i < urls.length; i++) {
+        if (urls[i].includes('list=')) {
+          try {
+            const res = await fetch('/api/playlist', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ url: urls[i] }),
+            });
+            const data = await res.json();
+            if (data.urls && data.urls.length) urls.splice(i, 1, ...data.urls);
+          } catch (_) {}
+        }
+      }
+      return urls;
+    }
+    async function fetchInfo(url) {
+      if (state.infoCache.has(url)) {
+        const cached = state.infoCache.get(url);
+        if (Date.now() - cached.time < 600000) return cached.data;
+      }
+      const res = await fetch('/api/info', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url }),
+      });
+      const data = await res.json();
+      state.infoCache.set(url, { time: Date.now(), data });
+      return data;
+    }
+    async function go() {
+      const raw = $('#urls').value;
+      let urls = parseUrls(raw);
+      if (!urls.length) { toast('Paste at least one URL first', 'error'); return; }
+      const btn = $('#goBtn');
+      const container = $('#cards');
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spin"></span>Loading...';
+      container.innerHTML = '';
+      state.cards.forEach(c => { if (c.jobId) clearInterval(state.pollTimers.get(c.jobId)); });
+      state.pollTimers.clear();
+      state.cards = [];
+      urls = await expandPlaylists(urls);
+      if (urls.length > 50) {
+        toast('Truncated ' + (urls.length - 50) + ' URLs (limit 50)', 'error');
+        urls = urls.slice(0, 50);
+      }
+      let anyError = false;
+      let anyReady = false;
+      for (let i = 0; i < urls.length; i++) {
+        const url = urls[i];
+        const idx = state.cards.length;
+        state.cards.push({ url, status: 'loading' });
+        renderCard(idx);
+        updateStats();
+        try {
+          const data = await fetchInfo(url);
+          if (data.error) {
+            state.cards[idx] = { ...state.cards[idx], status: 'info-error', error: data.error };
+            anyError = true;
+          } else {
+            state.cards[idx] = {
+              ...state.cards[idx],
+              status: 'ready',
+              title: data.title || '',
+              thumbnail: data.thumbnail || '',
+              duration: data.duration,
+              uploader: data.uploader || '',
+              formats: data.formats || [],
+              selectedFormatId: (data.formats && data.formats[0]) ? data.formats[0].id : null,
+              selectedAudioQuality: state.audioQuality,
+            };
+            anyReady = true;
+          }
+        } catch (err) {
+          state.cards[idx] = { ...state.cards[idx], status: 'info-error', error: err.message };
+          anyError = true;
+        }
+        renderCard(idx);
+        updateStats();
+      }
+      if (anyError) toast('Some URLs could not be loaded', 'error');
+      if (anyReady && state.cards.length === 1) toast('Ready \u2014 click Download');
+      const readyCount = state.cards.filter(c => c.status === 'ready').length;
+      if (readyCount > 1) renderDownloadAll(readyCount);
+      btn.disabled = false;
+      btn.textContent = 'Fetch';
+      $('#urls').blur();
+    }
+    function renderCard(idx) {
+      const c = state.cards[idx];
+      let el = document.getElementById('card-' + idx);
+      if (!el) {
+        el = document.createElement('div');
+        el.id = 'card-' + idx;
+        el.className = 'card';
+        $('#cards').appendChild(el);
+      }
+      if (c.status === 'loading') {
+        el.className = 'card';
+        el.innerHTML =
+          '<div class="card-thumb loading"></div>' +
+          '<div class="card-body">' +
+            '<div class="skeleton-line medium"></div>' +
+            '<div class="skeleton-line short"></div>' +
+          '</div>';
+        return;
+      }
+      if (c.status === 'info-error') {
+        el.className = 'card card-error';
+        el.innerHTML =
+          '<div class="card-thumb">' +
+            '<div class="card-error-icon">' +
+              '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>' +
+            '</div>' +
+          '</div>' +
+          '<div class="card-body">' +
+            '<div class="card-title" style="color:var(--error)">Could not fetch media</div>' +
+            '<div class="card-error-msg">' + esc(friendlyError(c.error)) + '</div>' +
+            '<div class="card-error-url">' + esc(c.url) + '</div>' +
+          '</div>';
+        return;
+      }
+      const isAudio = state.format === 'audio';
+      el.className = 'card';
+      const dur = c.duration ? '<span class="duration-badge">' + fmtDur(c.duration) + '</span>' : '';
+      let thumbHtml;
+      if (c.thumbnail) {
+        thumbHtml = '<img src="' + c.thumbnail + '" alt="" loading="lazy">' + dur;
+      } else {
+        const cls = isAudio ? 'no-thumb audio-icon' : 'no-thumb';
+        const svgIcon = isAudio
+          ? '<svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="5 3 19 12 5 21 5 3"/></svg>'
+          : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="2"/><circle cx="8" cy="8" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>';
+        thumbHtml = '<div class="' + cls + '">' + svgIcon + '</div>' + dur;
+      }
+      let chips = '';
+      if (isAudio) {
+        const selQ = c.selectedAudioQuality || state.audioQuality;
+        const overridden = c.__audioTouched && selQ !== state.audioQuality;
+        chips = AUDIO_QUALITIES.map(q =>
+          '<button class="q-chip audio-chip' + (q.id === selQ ? ' active' : '') + ((q.id === selQ && overridden) ? ' override' : '') + '" onclick="pickAudioQuality(' + idx + ', \'' + q.id + '\')" title="' + q.hint + '">' + q.label + '</button>'
+        ).join('');
+      } else if (c.formats && c.formats.length > 1) {
+        chips = c.formats.map(f =>
+          '<button class="q-chip' + (f.id === c.selectedFormatId ? ' active' : '') + '" onclick="pickFormat(' + idx + ', \'' + f.id + '\')">' + f.label + '</button>'
+        ).join('');
+      }
+      let actionHtml = '';
+      if (c.status === 'ready') {
+        actionHtml = '<button class="card-dl-btn" onclick="dlCard(' + idx + ')">Download</button>' + chips;
+      } else if (c.status === 'downloading') {
+        actionHtml = '<span class="card-status downloading"><span class="spin"></span>Downloading...</span>';
+      } else if (c.status === 'done') {
+        actionHtml =
+          '<button class="card-dl-btn done" onclick="saveCard(' + idx + ')">Save</button>' +
+          '<span class="card-status done">' + esc(c.filename || '') + '</span>';
+      } else if (c.status === 'error') {
+        actionHtml =
+          '<button class="card-dl-btn" onclick="dlCard(' + idx + ')">Retry</button>' +
+          '<span class="card-status error">' + esc(friendlyError(c.error || 'Download failed')) + '</span>';
+      }
+      const meta = [c.uploader].filter(Boolean);
+      if (isAudio) meta.unshift('<span class="meta-badge audio-badge">MP3</span>');
+      const metaHtml = meta.length
+        ? '<div class="card-meta">' + meta.map((m, i) => (i > 0 ? '<span class="meta-dot"></span>' + m : m)).join('') + '</div>'
+        : '';
+      el.innerHTML =
+        '<div class="card-thumb">' + thumbHtml + '</div>' +
+        '<div class="card-body">' +
+          '<div class="card-title">' + esc(c.title || 'Untitled') + '</div>' +
+          metaHtml +
+          '<div class="card-actions">' + actionHtml + '</div>' +
+        '</div>';
+    }
+    function renderDownloadAll(count) {
+      let bar = document.getElementById('dl-all-bar');
+      if (bar) bar.remove();
+      bar = document.createElement('div');
+      bar.id = 'dl-all-bar';
+      bar.className = 'dl-all-bar';
+      bar.innerHTML =
+        '<div class="dl-all-info"><span class="stat-dot ready"></span>' + count + ' ready</div>' +
+        '<button class="dl-all-btn" onclick="dlAll()">Download All</button>';
+      $('#cards').appendChild(bar);
+    }
+    async function dlCard(idx) {
+      const c = state.cards[idx];
+      c.status = 'downloading';
+      c.error = null;
+      renderCard(idx);
+      updateStats();
+      try {
+        const res = await fetch('/api/download', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            url: c.url,
+            format: state.format,
+            format_id: c.selectedFormatId,
+            audio_quality: c.selectedAudioQuality || state.audioQuality,
+            title: c.title || '',
+          }),
+        });
+        const data = await res.json();
+        if (data.error) {
+          c.status = 'error';
+          c.error = data.error;
+          renderCard(idx);
+          updateStats();
+          return;
+        }
+        c.jobId = data.job_id;
+        startPoll(idx);
+      } catch (err) {
+        c.status = 'error';
+        c.error = err.message;
+        renderCard(idx);
+        updateStats();
+      }
+    }
+    function startPoll(idx) {
+      const c = state.cards[idx];
+      const jobId = c.jobId;
+      let attempts = 0;
+      if (state.pollTimers.has(jobId)) clearInterval(state.pollTimers.get(jobId));
+      const iv = setInterval(async () => {
+        attempts++;
+        if (attempts > 300) {
+          clearInterval(iv);
+          state.pollTimers.delete(jobId);
+          c.status = 'error';
+          c.error = 'Still processing \u2014 check back in a moment';
+          renderCard(idx);
+          updateStats();
+          return;
+        }
+        try {
+          const res = await fetch('/api/status/' + jobId);
+          if (!res.ok) return;
+          const data = await res.json();
+          if (data.status === 'done') {
+            clearInterval(iv);
+            state.pollTimers.delete(jobId);
+            c.status = 'done';
+            c.filename = data.filename;
+            renderCard(idx);
+            updateStats();
+            saveCard(idx);
+          } else if (data.status === 'error') {
+            clearInterval(iv);
+            state.pollTimers.delete(jobId);
+            c.status = 'error';
+            c.error = data.error;
+            renderCard(idx);
+            updateStats();
+          }
+        } catch (_) {}
+      }, 900);
+      state.pollTimers.set(jobId, iv);
+    }
+    function saveCard(idx) {
+      const c = state.cards[idx];
+      if (!c.jobId) return;
+      const a = document.createElement('a');
+      a.href = '/api/file/' + c.jobId;
+      a.download = c.filename || '';
+      a.rel = 'noopener';
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => a.remove(), 500);
+    }
+    async function dlAll() {
+      const btn = $('.dl-all-btn');
+      if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spin"></span>Queuing...'; }
+      toast('Starting all downloads...');
+      for (let i = 0; i < state.cards.length; i++) {
+        if (state.cards[i].status === 'ready') {
+          await dlCard(i);
+          await new Promise(r => setTimeout(r, 200));
+        }
+      }
+      if (btn) { btn.disabled = false; btn.textContent = 'Download All'; }
+    }
+  </script>
+</body>
+</html>

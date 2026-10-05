@@ -1,0 +1,13 @@
+services:
+  pclip:
+    build: .
+    image: pclip:latest
+    container_name: pclip
+    ports:
+      - "8899:8899"
+    volumes:
+      - pclip-downloads:/app/downloads
+    restart: unless-stopped
+
+volumes:
+  pclip-downloads:
