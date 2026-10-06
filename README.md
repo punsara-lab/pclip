@@ -1,61 +1,88 @@
 # PClip
 
-> A sleek, self-hosted video & audio downloader with a premium dark UI. Paste links from YouTube, TikTok, Instagram, X/Twitter, and **1000+ sites** — download as MP4 or MP3 with full metadata and cover art.
+> Future-ready media flow for creators.
+
+A sleek, self-hosted downloader built for high-speed media capture from the web. Paste a link, fetch metadata in seconds, choose a format, and download cleanly in MP4 or MP3 — all from a premium dark interface designed for modern creators and power users.
+
+![PClip Interface](./assets/pclip-screenshot.png)
 
 ![Python](https://img.shields.io/badge/python-3.8%2B-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![yt-dlp](https://img.shields.io/badge/powered--by-yt--dlp-ff6b6b)
-![UI](https://img.shields.io/badge/UI-Dark%20Mode%20%E2%9C%A8-7c5cff)
+![UI](https://img.shields.io/badge/UI-future%20dark-7c5cff)
 
-Built by [**punsara-lab**](https://github.com/punsara-lab) — minimal, fast, no frameworks.
-
----
-
-## ✨ Features
-
-- **1000+ sites** — anything yt-dlp supports (YouTube, TikTok, IG, X, Reddit, SoundCloud, Twitch, Vimeo, etc.)
-- **MP4 video** or **MP3 audio** with embedded cover art + title/artist metadata
-- **Quality picker** — per-video resolution selection, bitrate selector (128/192/256/320 kbps)
-- **Bulk downloads** — paste 50 URLs at once, click *Download All*
-- **Auto playlist expansion** — paste a playlist URL, get all entries
-- **URL dedup** — no duplicate downloads
-- **Zero frontend build step** — vanilla HTML/CSS/JS, single template file
-- **Tiny backend** — one Flask file (~280 lines)
-- **Dark UI** — glassmorphism, soft gradients, tasteful minimalism
-- **Cross-platform** — Windows `.bat`, macOS/Linux `.sh`, Docker
+Built by [**punsara-lab**](https://github.com/punsara-lab) · minimal code, maximum utility.
 
 ---
 
-## 🚀 Quick Start
+## Why PClip
 
-### Windows (one-click)
+PClip is designed for one job: make media downloading feel fast, focused, and effortless.
 
-Ensure **Python 3.8+** and **FFmpeg** are on your `PATH`, then:
+- Works with YouTube, TikTok, Instagram, X/Twitter, Reddit, Twitch, Vimeo, SoundCloud, and 1000+ supported sites through `yt-dlp`
+- Gives you quick format selection for video and audio
+- Handles playlist links without friction
+- Keeps the workflow local and private
+- Ships with a polished interface that feels like a creator tool, not a broken utility app
+
+This project is intentionally lightweight: no heavy framework, no build pipeline, no database, no clutter.
+
+---
+
+## Features
+
+- 1000+ source support via `yt-dlp`
+- MP4 and MP3 output with metadata support
+- Audio bitrate selection: 128 / 192 / 256 / 320 kbps
+- Resolution selection for supported video sources
+- Batch download support for multiple URLs
+- Playlist expansion for media collections
+- URL deduplication to avoid repeat fetches
+- Embedded cover art and ID3 metadata for audio
+- Dark-mode, glass-panel interface with future-cyber styling
+- Local-first workflow for privacy and control
+- Runs on Windows, macOS, Linux, and Docker
+
+---
+
+## Quick start
+
+### Windows
+
+Make sure Python 3.8+ and FFmpeg are installed and available in `PATH`, then run:
 
 ```bat
 pclip.bat
 ```
 
-The script auto-creates a venv, installs deps, updates yt-dlp, and opens your browser.
+This script creates a virtual environment, installs dependencies, updates `yt-dlp`, and opens the app in your browser.
 
 ### macOS / Linux
 
 ```bash
-# Install ffmpeg first: brew install ffmpeg  # or: sudo apt install ffmpeg
+# install ffmpeg first
+# macOS: brew install ffmpeg
+# Ubuntu/Debian: sudo apt install ffmpeg
+
 git clone https://github.com/punsara-lab/pclip.git
 cd pclip
 ./pclip.sh
 ```
 
-Open **http://localhost:8899**
+Then open:
+
+```text
+http://localhost:8899
+```
 
 ### Docker
 
 ```bash
-docker build -t pclip . && docker run -p 8899:8899 -v pclip-downloads:/app/downloads pclip
+docker build -t pclip .
+docker run -p 8899:8899 -v pclip-downloads:/app/downloads pclip
 ```
 
-Or with docker-compose:
+Or with Docker Compose:
 
 ```bash
 docker compose up -d
@@ -63,71 +90,80 @@ docker compose up -d
 
 ---
 
-## 🧠 Usage
+## How to use it
 
-1. **Paste URLs** in the input (one per line, or separated by spaces/commas)
-2. Pick **MP4** (video) or **MP3** (audio)
-   - For MP3: choose bitrate 128 / 192 / 256 / 320
-3. Click **Fetch** (or `Ctrl+Enter`) to load thumbs, titles, durations
-4. Optional — per-card override: pick a specific resolution or bitrate
-5. Click **Download** on a card, or **Download All** for the batch
+1. Paste one or more URLs into the input box.
+2. Choose output type: MP4 video or MP3 audio.
+3. Click Fetch to load metadata and thumbnails.
+4. Optionally override quality or bitrate per item.
+5. Download individually or use Download All for the batch.
 
-Files land in `/downloads` with human-readable names, proper MP3 ID3v2.3 tags, and embedded cover art.
-
----
-
-## 🧱 Stack
-
-| Layer         | Tech                                                              |
-|---------------|-------------------------------------------------------------------|
-| Backend       | Python 3 · Flask (single ~280-line file)                          |
-| Frontend      | Vanilla HTML/CSS/JS — no build, no npm, zero frameworks           |
-| Downloader    | [yt-dlp](https://github.com/yt-dlp/yt-dlp)                        |
-| Media toolkit | [FFmpeg](https://ffmpeg.org/)                                     |
-| Metadata      | [mutagen](https://github.com/quodlibet/mutagen) (ID3 + cover art) |
-| Hosting       | Local Flask, Docker-ready, no DB                                  |
-
-**Direct pip deps**: `flask`, `yt-dlp`, `mutagen` — that's it.
+Files are saved into the local `downloads/` folder, with MP3s tagged and cover art embedded.
 
 ---
 
-## ⚙️ Environment Variables
+## Tech stack
 
-| Variable           | Default       | Purpose                                       |
-|--------------------|---------------|-----------------------------------------------|
-| `PORT`             | `8899`        | Listen port                                   |
-| `HOST`             | `127.0.0.1`   | Bind host — set `0.0.0.0` to expose on LAN    |
-| `PCLIP_AUTO_OPEN`  | `1`           | Set to `0` to skip auto-opening the browser   |
-| `PCLIP_NO_UPDATE`  | *(unset)*     | Define to skip the yt-dlp auto-update on boot |
+| Layer | Stack |
+|---|---|
+| Backend | Python 3 + Flask |
+| Frontend | Vanilla HTML, CSS, JavaScript |
+| Download engine | `yt-dlp` |
+| Audio metadata | `mutagen` |
+| Media conversion | FFmpeg |
+| Deployment | Local runtime + Docker-ready |
 
----
+Core dependencies:
 
-## 📁 Project Layout
-
+```txt
+flask
+yt-dlp
+mutagen
 ```
+
+---
+
+## Environment variables
+
+| Variable | Default | Purpose |
+|---|---:|---|
+| `PORT` | `8899` | App port |
+| `HOST` | `127.0.0.1` | Bind address |
+| `PCLIP_AUTO_OPEN` | `1` | Open browser automatically |
+| `PCLIP_NO_UPDATE` | unset | Skip `yt-dlp` auto-update on startup |
+
+---
+
+## Project layout
+
+```text
 pclip/
-├── app.py                  # Flask backend — all API routes + download logic
+├── app.py                  # Flask backend + download logic
 ├── templates/
-│   └── index.html          # Entire UI (HTML/CSS/JS in one file)
+│   └── index.html          # UI layout, styles, and browser logic
 ├── static/
-│   └── favicon.svg         # Brand mark
-├── downloads/              # Saved media (created automatically)
-├── pclip.bat               # Windows launcher (venv + deps + auto-open)
+│   └── favicon.svg         # Brand icon
+├── downloads/              # Downloaded media output
+├── pclip.bat               # Windows launcher
 ├── pclip.sh                # macOS/Linux launcher
 ├── Dockerfile
 ├── docker-compose.yml
-├── requirements.txt        # flask, yt-dlp, mutagen
-└── README.md
+├── requirements.txt
+├── LICENSE
+├── README.md
+└── .gitignore
 ```
 
 ---
 
-## ⚠️ Disclaimer
+## Notes
 
-Personal use only. Respect copyright and each platform's TOS. The authors are not liable for misuse.
+- This tool is intended for personal use and legitimate media access.
+- Respect platform terms of service, copyright laws, and local regulations.
+- The project is intentionally lightweight and transparent by design.
 
 ---
 
-## 📜 License
+## License
 
 [MIT](LICENSE) · © 2026 [punsara-lab](https://github.com/punsara-lab)
