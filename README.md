@@ -88,15 +88,19 @@ Or with Docker Compose:
 docker compose up -d
 ```
 
-### Render (free web service)
+### Hostless (free web service)
 
-The included `render.yaml` Blueprint can deploy PClip as a Docker web service:
+The included `hostless.yaml` deploys PClip as a Docker app:
 
 1. Push this repository to GitHub.
-2. In Render, choose **New > Blueprint** and select the repository.
-3. Render will detect `render.yaml` and create a free `pclip` web service.
+2. Open the [Hostless dashboard](https://web.hostless.cloud).
+3. Create an app and connect this repository.
+4. Set the build system to **Docker**.
+5. Add these environment variables if needed:
+   - `PCLIP_AUTO_OPEN=0`
+   - `PCLIP_NO_UPDATE=1`
 
-The container uses Render's `PORT` automatically and disables browser auto-open.
+Hostless supplies `PORT`, and PClip's Docker start command binds to it. The free-tier scaling settings use one 0.1-vCPU replica with 512 MB RAM.
 
 ---
 
