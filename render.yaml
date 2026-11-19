@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: pclip
+    env: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    envVars:
+      - key: HOST
+        value: 0.0.0.0
+      - key: PCLIP_AUTO_OPEN
+        value: "0"

@@ -275,9 +275,31 @@ def _open_browser_later(port):
         pass
 
 
+def get_lan_ip():
+    # Best-effort: open a UDP socket to a public address to discover the
+    # outbound interface's LAN IP. No packet is actually sent.
+    import socket
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("8.8.8.8", 80))
+        ip = s.getsockname()[0]
+        s.close()
+        return ip
+    except Exception:
+        return None
+
+
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8899))
+    host = os.environ.get("HOST", "0.0.0.0")
     if os.environ.get("PCLIP_AUTO_OPEN", "1") != "0":
         threading.Thread(target=_open_browser_later, args=(port,), daemon=True).start()
-    app.run(host="127.0.0.1", port=port, use_reloader=False)
+    lan = get_lan_ip()
+    print("")
+    print("  PClip running")
+    print("    this PC :  http://localhost:" + str(port))
+    if lan and host != "127.0.0.1":
+        print("    same WiFi: http://" + lan + ":" + str(port) + "   <- use this on your phone")
+    print("")
+    app.run(host=host, port=port, use_reloader=False)
 

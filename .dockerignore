@@ -1,0 +1,10 @@
+venv/
+downloads/
+__pycache__/
+*.pyc
+.git/
+.gitignore
+.env
+.env.*
+.DS_Store
+assets/*.mov

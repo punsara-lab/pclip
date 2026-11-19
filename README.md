@@ -19,10 +19,11 @@ Built by [**punsara-lab**](https://github.com/punsara-lab) · minimal code, maxi
 
 PClip is designed for one job: make media downloading feel fast, focused, and effortless.
 
-- Works with YouTube, TikTok, Instagram, X/Twitter, Reddit, Twitch, Vimeo, SoundCloud, and 1000+ supported sites through `yt-dlp`
+- Works with YouTube, TikTok, Instagram, X/Twitter, Reddit, Twitch, Vimeo, SoundCloud, adult sites, and 1000+ supported sites through `yt-dlp`
 - Gives you quick format selection for video and audio
 - Handles playlist links without friction
 - Keeps the workflow local and private
+- Accessible from your phone on the same WiFi, or from anywhere via a free Cloudflare tunnel
 - Ships with a polished interface that feels like a creator tool, not a broken utility app
 
 This project is intentionally lightweight: no heavy framework, no build pipeline, no database, no clutter.
@@ -41,6 +42,7 @@ This project is intentionally lightweight: no heavy framework, no build pipeline
 - Embedded cover art and ID3 metadata for audio
 - Dark-mode, glass-panel interface with future-cyber styling
 - Local-first workflow for privacy and control
+- Three serve modes: local, same-WiFi (phone access), and anywhere (free Cloudflare tunnel)
 - Runs locally on Windows, macOS, and Linux
 
 ---
@@ -55,7 +57,19 @@ Make sure Python 3.8+ and FFmpeg are installed and available in `PATH`, then run
 pclip.bat
 ```
 
-This script creates a virtual environment, installs dependencies, updates `yt-dlp`, and opens the app in your browser.
+This script creates a virtual environment, installs dependencies, and updates `yt-dlp`. It then shows a menu to choose how to serve the app:
+
+```
+  1. Local only   - this PC only
+  2. Same WiFi    - phone/tablet on same network
+  3. Anywhere     - public URL via Cloudflare tunnel
+```
+
+- **Local only** — accessible at `http://localhost:8899`, nothing exposed to the network.
+- **Same WiFi** — also prints your LAN IP (e.g. `http://192.168.1.23:8899`), open it on your phone.
+- **Anywhere** — downloads `cloudflared` once and gives you a free public `https://...trycloudflare.com` URL that works from any device anywhere. No account, no credit card.
+
+The browser is **not** opened automatically — open the URL yourself.
 
 ### macOS / Linux
 
@@ -75,7 +89,39 @@ Then open:
 http://localhost:8899
 ```
 
-PClip runs only on this computer at `127.0.0.1`; it is not configured for remote hosting or network access.
+For phone access on the same network, run with `HOST=0.0.0.0`:
+
+```bash
+HOST=0.0.0.0 ./pclip.sh
+```
+
+and open the printed LAN URL on your phone.
+
+---
+
+## Serving modes
+
+| Mode | Command | Accessible from |
+|---|---|---|
+| Local only | `pclip.bat` → option 1 | This PC only |
+| Same WiFi | `pclip.bat` → option 2 | Any device on your WiFi |
+| Anywhere | `pclip.bat` → option 3 | Any device on the internet (free Cloudflare tunnel) |
+
+The **Anywhere** mode uses a random `https://*.trycloudflare.com` URL that changes on every restart. For a stable URL, use Tailscale Funnel (free account) or a named Cloudflare tunnel.
+
+---
+
+## Cloud hosting (optional)
+
+PClip can be containerized and hosted for free on Render, Koyeb, or Hugging Face Spaces using the included `Dockerfile` and `render.yaml`.
+
+**Important:** free cloud hosts use datacenter IPs, which **YouTube aggressively blocks**. Non-YouTube sites generally work fine. For reliable YouTube downloads, run PClip locally and use the tunnel option above.
+
+Deploy on Render:
+
+1. Push the repo to GitHub.
+2. Render → **New → Blueprint** → select repo → it reads `render.yaml` automatically → **Deploy**.
+3. You get a free `https://*.onrender.com` URL.
 
 ---
 
@@ -117,8 +163,15 @@ mutagen
 | Variable | Default | Purpose |
 |---|---:|---|
 | `PORT` | `8899` | App port |
-| `PCLIP_AUTO_OPEN` | `1` | Open browser automatically |
+| `HOST` | `0.0.0.0` | Bind address (`127.0.0.1` for local only) |
+| `PCLIP_AUTO_OPEN` | `1` | Open browser automatically on startup |
 | `PCLIP_NO_UPDATE` | unset | Skip `yt-dlp` auto-update on startup |
+
+---
+
+## Sites that need login (cookies)
+
+Some sites (e.g. adult platforms, age-gated content) require an authenticated session. Export your browser cookies to a Netscape-format `cookies.txt` file and pass it via the `--cookies` flag. You can add cookie support to `app.py` by appending `--cookies` to the yt-dlp command when a `COOKIES_FILE` env var is set.
 
 ---
 
@@ -132,8 +185,13 @@ pclip/
 ├── static/
 │   └── favicon.svg         # Brand icon
 ├── downloads/              # Downloaded media output
-├── pclip.bat               # Windows launcher
+├── pclip.bat               # Windows menu launcher (local / WiFi / anywhere)
 ├── pclip.sh                # macOS/Linux launcher
+├── pclip-tunnel.bat        # Windows remote-tunnel launcher
+├── pclip-tunnel.ps1        # Cloudflare tunnel script
+├── Dockerfile              # Container image for cloud hosting
+├── render.yaml             # Render one-click deploy config
+├── .dockerignore
 ├── requirements.txt
 ├── LICENSE
 ├── README.md
@@ -146,6 +204,7 @@ pclip/
 
 - This tool is intended for personal use and legitimate media access.
 - Respect platform terms of service, copyright laws, and local regulations.
+- Keep `yt-dlp` updated — site extractors break frequently; `pip install -U yt-dlp` (or re-run `pclip.bat`) usually fixes them.
 - The project is intentionally lightweight and transparent by design.
 
 ---
