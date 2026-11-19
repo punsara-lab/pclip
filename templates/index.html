@@ -1018,6 +1018,87 @@
         scroll-behavior: auto !important;
       }
     }
+    /* ===== Access panel ===== */
+    .access-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      width: 100%;
+      max-width: 760px;
+      margin: 0 auto 18px;
+      padding: 12px 14px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      backdrop-filter: blur(12px);
+    }
+    .access-row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .access-item {
+      flex: 1 1 0;
+      min-width: 200px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 10px;
+      background: rgba(8, 14, 24, 0.5);
+      border: 1px solid rgba(129, 172, 255, 0.12);
+      border-radius: var(--radius-sm);
+    }
+    .access-item.remote {
+      border-color: rgba(108, 240, 193, 0.22);
+      background: rgba(8, 20, 18, 0.5);
+    }
+    .access-tag {
+      flex-shrink: 0;
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      padding: 3px 8px;
+      border-radius: 6px;
+      background: var(--accent-soft);
+      color: var(--accent-0);
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .access-item.remote .access-tag {
+      background: var(--success-soft);
+      color: var(--success);
+    }
+    .access-url {
+      flex: 1;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      color: var(--fg-muted);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .copy-btn, .tunnel-btn {
+      flex-shrink: 0;
+      border: 1px solid var(--border);
+      background: rgba(105, 231, 255, 0.08);
+      color: var(--fg);
+      font-size: 11px;
+      font-weight: 500;
+      padding: 4px 10px;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      font-family: 'Inter', sans-serif;
+    }
+    .copy-btn:hover { background: rgba(105, 231, 255, 0.18); }
+    .tunnel-btn {
+      background: linear-gradient(135deg, rgba(108, 240, 193, 0.18), rgba(105, 231, 255, 0.12));
+      border-color: rgba(108, 240, 193, 0.35);
+      color: var(--success);
+    }
+    .tunnel-btn:hover { filter: brightness(1.15); }
+    .tunnel-btn.active { background: var(--error-soft); color: var(--error); border-color: rgba(255, 130, 164, 0.4); }
+    .tunnel-btn.loading { opacity: 0.6; pointer-events: none; }
   </style>
 </head>
 <body>
@@ -1032,6 +1113,28 @@
       </div>
       <h1>P<span>Clip</span></h1>
       <p>future-ready media flow <strong>for creators</strong> · 1000+ sites</p>
+    </div>
+    <div class="access-panel" id="accessPanel">
+      <div class="access-row">
+        <div class="access-item" title="This computer only">
+          <span class="access-tag">local</span>
+          <span class="access-url" id="localUrl">http://localhost:8899</span>
+          <button class="copy-btn" onclick="copyText('localUrl')">copy</button>
+        </div>
+        <div class="access-item" title="Same WiFi network">
+          <span class="access-tag">wifi</span>
+          <span class="access-url" id="wifiUrl">detecting…</span>
+          <button class="copy-btn" onclick="copyText('wifiUrl')">copy</button>
+        </div>
+      </div>
+      <div class="access-row">
+        <div class="access-item remote" id="remoteItem">
+          <span class="access-tag">anywhere</span>
+          <span class="access-url" id="tunnelUrl">off — click enable</span>
+          <button class="copy-btn" onclick="copyText('tunnelUrl')">copy</button>
+          <button class="tunnel-btn" id="tunnelBtn" onclick="toggleTunnel()">Enable remote</button>
+        </div>
+      </div>
     </div>
     <div class="input-wrap" id="inputWrap">
       <textarea id="urls" placeholder="Paste one or more URLs..." rows="2" autofocus></textarea>
@@ -1497,6 +1600,73 @@
       }
       if (btn) { btn.disabled = false; btn.textContent = 'Download All'; }
     }
+
+    // ===== Access panel =====
+    function copyText(id) {
+      const el = document.getElementById(id);
+      const text = el.textContent.trim();
+      if (!text || text.includes('—') || text.includes('detecting')) { toast('Nothing to copy', 'error'); return; }
+      navigator.clipboard.writeText(text).then(() => toast('Copied: ' + text, 'success')).catch(() => toast('Copy failed', 'error'));
+    }
+    async function loadAccess() {
+      try {
+        const r = await fetch('/api/access');
+        const d = await r.json();
+        document.getElementById('localUrl').textContent = d.local;
+        document.getElementById('wifiUrl').textContent = d.wifi || 'not available';
+        if (d.tunnel) {
+          document.getElementById('tunnelUrl').textContent = d.tunnel;
+          setTunnelBtn(true);
+        }
+        if (!d.tunnel_available) {
+          const btn = document.getElementById('tunnelBtn');
+          btn.textContent = 'install cloudflared';
+          btn.title = 'Run pclip-tunnel.bat once to download cloudflared';
+        }
+      } catch (e) {}
+    }
+    function setTunnelBtn(active) {
+      const btn = document.getElementById('tunnelBtn');
+      if (active) {
+        btn.textContent = 'Disable';
+        btn.classList.add('active');
+        btn.classList.remove('loading');
+      } else {
+        btn.textContent = 'Enable remote';
+        btn.classList.remove('active', 'loading');
+      }
+    }
+    async function toggleTunnel() {
+      const btn = document.getElementById('tunnelBtn');
+      const urlEl = document.getElementById('tunnelUrl');
+      const active = btn.classList.contains('active');
+      btn.classList.add('loading');
+      try {
+        if (active) {
+          await fetch('/api/tunnel/stop', { method: 'POST' });
+          urlEl.textContent = 'off — click enable';
+          setTunnelBtn(false);
+          toast('Remote access disabled', 'success');
+        } else {
+          urlEl.textContent = 'starting…';
+          const r = await fetch('/api/tunnel/start', { method: 'POST' });
+          const d = await r.json();
+          if (r.ok && d.url) {
+            urlEl.textContent = d.url;
+            setTunnelBtn(true);
+            toast('Remote access live!', 'success');
+          } else {
+            urlEl.textContent = 'failed — retry';
+            setTunnelBtn(false);
+            toast(d.error || 'Failed to start tunnel', 'error');
+          }
+        }
+      } catch (e) {
+        setTunnelBtn(false);
+        toast('Tunnel error', 'error');
+      }
+    }
+    loadAccess();
   </script>
 </body>
 </html>

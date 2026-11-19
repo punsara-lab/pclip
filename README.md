@@ -57,19 +57,15 @@ Make sure Python 3.8+ and FFmpeg are installed and available in `PATH`, then run
 pclip.bat
 ```
 
-This script creates a virtual environment, installs dependencies, and updates `yt-dlp`. It then shows a menu to choose how to serve the app:
+This script creates a virtual environment, installs dependencies, updates `yt-dlp`, and opens the app in your browser. The app binds to `0.0.0.0` so it's reachable from your phone on the same WiFi.
 
-```
-  1. Local only   - this PC only
-  2. Same WiFi    - phone/tablet on same network
-  3. Anywhere     - public URL via Cloudflare tunnel
-```
+The web UI has an **Access panel** at the top with three URLs:
 
-- **Local only** — accessible at `http://localhost:8899`, nothing exposed to the network.
-- **Same WiFi** — also prints your LAN IP (e.g. `http://192.168.1.23:8899`), open it on your phone.
-- **Anywhere** — downloads `cloudflared` once and gives you a free public `https://...trycloudflare.com` URL that works from any device anywhere. No account, no credit card.
+- **local** — `http://localhost:8899` (this PC only)
+- **wifi** — your LAN IP (use on your phone/tablet on the same network)
+- **anywhere** — click **Enable remote** to start a free Cloudflare tunnel and get a public `https://...trycloudflare.com` URL that works from any device anywhere. (Runs `cloudflared`; if missing, run `pclip-tunnel.bat` once to download it.)
 
-The browser is **not** opened automatically — open the URL yourself.
+Each URL has a **copy** button.
 
 ### macOS / Linux
 
@@ -101,13 +97,13 @@ and open the printed LAN URL on your phone.
 
 ## Serving modes
 
-| Mode | Command | Accessible from |
-|---|---|---|
-| Local only | `pclip.bat` → option 1 | This PC only |
-| Same WiFi | `pclip.bat` → option 2 | Any device on your WiFi |
-| Anywhere | `pclip.bat` → option 3 | Any device on the internet (free Cloudflare tunnel) |
+| Mode | How to access |
+|---|---|
+| Local only | Open `http://localhost:8899` on this PC |
+| Same WiFi | Copy the **wifi** URL from the Access panel, open it on any device on your WiFi |
+| Anywhere | Click **Enable remote** in the Access panel → copy the public `https://*.trycloudflare.com` URL |
 
-The **Anywhere** mode uses a random `https://*.trycloudflare.com` URL that changes on every restart. For a stable URL, use Tailscale Funnel (free account) or a named Cloudflare tunnel.
+The **anywhere** tunnel uses a random URL that changes on every restart. For a stable URL, use Tailscale Funnel (free account) or a named Cloudflare tunnel.
 
 ---
 

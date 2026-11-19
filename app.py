@@ -3,6 +3,9 @@ import uuid
 import glob
 import json
 import sys
+import time
+import re
+import shutil
 import subprocess
 import threading
 from flask import Flask, request, jsonify, send_file, render_template
@@ -11,7 +14,44 @@ app = Flask(__name__)
 DOWNLOAD_DIR = os.path.join(os.path.dirname(__file__), "downloads")
 os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 
+# Optional shared cookies file for login-gated / age-restricted sites.
+# Set COOKIES_FILE to a Netscape-format cookies.txt path.
+COOKIES_FILE = os.environ.get("COOKIES_FILE") or None
+if COOKIES_FILE and not os.path.isfile(COOKIES_FILE):
+    COOKIES_FILE = None
+
+# How long to keep downloaded files on disk before cleanup (seconds).
+FILE_TTL = int(os.environ.get("PCLIP_FILE_TTL", "86400"))  # 24h default
+
 jobs = {}
+_jobs_lock = threading.Lock()
+
+_tunnel = {"proc": None, "url": None, "log": None}
+_tunnel_lock = threading.Lock()
+
+CLOUDFLARED_PATHS = [
+    os.path.join(os.path.dirname(__file__), "cloudflared.exe"),
+    os.path.join(os.path.dirname(__file__), "cloudflared"),
+]
+
+
+def find_cloudflared():
+    for p in CLOUDFLARED_PATHS:
+        if os.path.isfile(p):
+            return p
+    return shutil.which("cloudflared")
+
+
+def _cookies_arg():
+    """Return ['--cookies', path] if a valid cookies file is configured."""
+    if COOKIES_FILE and os.path.isfile(COOKIES_FILE):
+        return ["--cookies", COOKIES_FILE]
+    return []
+
+
+def ytdlp_cmd(*extra):
+    """Build a yt-dlp command with shared options (cookies, no playlist)."""
+    return [sys.executable, "-m", "yt_dlp", "--no-playlist"] + _cookies_arg() + list(extra)
 
 
 def parse_ytdlp_json(stdout):
@@ -23,8 +63,13 @@ def parse_ytdlp_json(stdout):
     raise ValueError("yt-dlp returned no data")
 
 
+def last_err_line(stderr):
+    lines = [l for l in (stderr or "").strip().splitlines() if l.strip()]
+    return lines[-1] if lines else "Unknown error"
+
+
 def fetch_info(url):
-    cmd = [sys.executable, "-m", "yt_dlp", "--no-playlist", "-j", url]
+    cmd = ytdlp_cmd("-j", url)
     try:
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
         if result.returncode != 0:
@@ -80,42 +125,69 @@ def _try_write_mp3_id3(mp3_path, info):
         pass
 
 
+def cleanup_old_files():
+    """Remove downloaded files older than FILE_TTL seconds."""
+    now = time.time()
+    for f in glob.glob(os.path.join(DOWNLOAD_DIR, "*")):
+        try:
+            if now - os.path.getmtime(f) > FILE_TTL:
+                os.remove(f)
+        except OSError:
+            pass
+
+
+def cleanup_old_jobs():
+    """Drop finished/errored jobs from memory after an hour."""
+    now = time.time()
+    with _jobs_lock:
+        for jid in list(jobs.keys()):
+            j = jobs[jid]
+            if j.get("status") in ("done", "error") and now - j.get("_ts", now) > 3600:
+                jobs.pop(jid, None)
+
+
 def run_download(job_id, url, format_choice, format_id, audio_quality=None):
-    job = jobs[job_id]
+    with _jobs_lock:
+        jobs[job_id]["_ts"] = time.time()
     out_template = os.path.join(DOWNLOAD_DIR, job_id + ".%(ext)s")
     info = fetch_info(url) or {}
-    title = job.get("title") or info.get("title") or ""
+    title = jobs[job_id].get("title") or info.get("title") or ""
     uploader = info.get("uploader") or info.get("channel") or ""
     if title:
-        job["title"] = title
+        jobs[job_id]["title"] = title
     if uploader:
-        job["uploader"] = uploader
-    cmd = [sys.executable, "-m", "yt_dlp", "--no-playlist", "-o", out_template]
+        jobs[job_id]["uploader"] = uploader
+
+    cmd = ytdlp_cmd("-o", out_template)
     if format_choice == "audio":
-        cmd += ["-x", "--audio-format", "mp3", "--embed-metadata", "--embed-thumbnail", "--convert-thumbnails", "jpg"]
+        cmd += ["-x", "--audio-format", "mp3", "--embed-metadata",
+                "--embed-thumbnail", "--convert-thumbnails", "jpg"]
         if audio_quality:
-            cmd += ["--audio-quality", audio_quality, "--postprocessor-args", "ExtractAudio+ffmpeg:-b:a " + audio_quality]
+            cmd += ["--audio-quality", audio_quality,
+                    "--postprocessor-args", "ExtractAudio+ffmpeg:-b:a " + audio_quality]
     elif format_id:
         cmd += ["-f", format_id + "+bestaudio/best", "--merge-output-format", "mp4"]
     else:
         cmd += ["-f", "bestvideo+bestaudio/best", "--merge-output-format", "mp4"]
     cmd.append(url)
+
     try:
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
         if result.returncode != 0:
-            job["status"] = "error"
-            job["error"] = result.stderr.strip().split("\n")[-1]
+            jobs[job_id]["status"] = "error"
+            jobs[job_id]["error"] = last_err_line(result.stderr)
             return
         files = glob.glob(os.path.join(DOWNLOAD_DIR, job_id + ".*"))
         if not files:
-            job["status"] = "error"
-            job["error"] = "Download completed but no file was found"
+            jobs[job_id]["status"] = "error"
+            jobs[job_id]["error"] = "Download completed but no file was found"
             return
         if format_choice == "audio":
             target = [f for f in files if f.endswith(".mp3")]
             chosen = target[0] if target else files[0]
             if chosen.endswith(".mp3"):
-                merged_info = {"title": title, "uploader": uploader, "thumbnail": info.get("thumbnail") or ""}
+                merged_info = {"title": title, "uploader": uploader,
+                               "thumbnail": info.get("thumbnail") or ""}
                 _try_write_mp3_id3(chosen, merged_info)
         else:
             target = [f for f in files if f.endswith(".mp4")]
@@ -126,21 +198,21 @@ def run_download(job_id, url, format_choice, format_id, audio_quality=None):
                     os.remove(ff)
                 except OSError:
                     pass
-        job["status"] = "done"
-        job["file"] = chosen
+        jobs[job_id]["status"] = "done"
+        jobs[job_id]["file"] = chosen
         ext = os.path.splitext(chosen)[1]
-        final_title = (job.get("title") or "").strip()
+        final_title = (jobs[job_id].get("title") or "").strip()
         if final_title:
             safe_title = "".join(c for c in final_title if c not in r'\/:*?"<>|').strip()[:100].strip()
-            job["filename"] = safe_title + ext if safe_title else os.path.basename(chosen)
+            jobs[job_id]["filename"] = safe_title + ext if safe_title else os.path.basename(chosen)
         else:
-            job["filename"] = os.path.basename(chosen)
+            jobs[job_id]["filename"] = os.path.basename(chosen)
     except subprocess.TimeoutExpired:
-        job["status"] = "error"
-        job["error"] = "Download timed out (5 min limit)"
+        jobs[job_id]["status"] = "error"
+        jobs[job_id]["error"] = "Download timed out (5 min limit)"
     except Exception as e:
-        job["status"] = "error"
-        job["error"] = str(e)
+        jobs[job_id]["status"] = "error"
+        jobs[job_id]["error"] = str(e)
 
 
 @app.route("/")
@@ -148,17 +220,22 @@ def index():
     return render_template("index.html")
 
 
+@app.route("/api/health")
+def health():
+    return jsonify({"status": "ok"})
+
+
 @app.route("/api/info", methods=["POST"])
 def get_info():
-    data = request.json
-    url = data.get("url", "").strip()
+    data = request.json or {}
+    url = (data.get("url") or "").strip()
     if not url:
         return jsonify({"error": "No URL provided"}), 400
-    cmd = [sys.executable, "-m", "yt_dlp", "--no-playlist", "-j", url]
+    cmd = ytdlp_cmd("-j", url)
     try:
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
         if result.returncode != 0:
-            return jsonify({"error": result.stderr.strip().split("\n")[-1]}), 400
+            return jsonify({"error": last_err_line(result.stderr)}), 400
         info = parse_ytdlp_json(result.stdout)
         best_by_height = {}
         for f in info.get("formats", []):
@@ -187,15 +264,15 @@ def get_info():
 
 @app.route("/api/playlist", methods=["POST"])
 def get_playlist_info():
-    data = request.json
-    url = data.get("url", "").strip()
+    data = request.json or {}
+    url = (data.get("url") or "").strip()
     if not url:
         return jsonify({"error": "No URL provided"}), 400
-    cmd = [sys.executable, "-m", "yt_dlp", "--flat-playlist", "-J", url]
+    cmd = ytdlp_cmd("--flat-playlist", "-J", url)
     try:
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
         if result.returncode != 0:
-            return jsonify({"error": result.stderr.strip().split("\n")[-1]}), 400
+            return jsonify({"error": last_err_line(result.stderr)}), 400
         info = json.loads(result.stdout)
         entries = info.get("entries", [])
         urls = [entry.get("url") for entry in entries if entry.get("url")]
@@ -222,7 +299,8 @@ def start_download():
     if not url:
         return jsonify({"error": "No URL provided"}), 400
     job_id = uuid.uuid4().hex[:10]
-    jobs[job_id] = {"status": "downloading", "url": url, "title": title}
+    with _jobs_lock:
+        jobs[job_id] = {"status": "downloading", "url": url, "title": title, "_ts": time.time()}
     thread = threading.Thread(target=run_download, args=(job_id, url, format_choice, format_id, audio_quality))
     thread.daemon = True
     thread.start()
@@ -231,7 +309,8 @@ def start_download():
 
 @app.route("/api/status/<job_id>")
 def check_status(job_id):
-    job = jobs.get(job_id)
+    with _jobs_lock:
+        job = jobs.get(job_id)
     if not job:
         return jsonify({"error": "Job not found"}), 404
     return jsonify({
@@ -243,15 +322,91 @@ def check_status(job_id):
 
 @app.route("/api/file/<job_id>")
 def download_file(job_id):
-    job = jobs.get(job_id)
+    with _jobs_lock:
+        job = jobs.get(job_id)
     if not job or job["status"] != "done":
         return jsonify({"error": "File not ready"}), 404
     return send_file(job["file"], as_attachment=True, download_name=job["filename"])
 
 
+@app.route("/api/access")
+def access_info():
+    port = int(os.environ.get("PORT", 8899))
+    lan = get_lan_ip()
+    with _tunnel_lock:
+        tunnel_url = _tunnel["url"]
+    return jsonify({
+        "local": "http://localhost:" + str(port),
+        "wifi": ("http://" + lan + ":" + str(port)) if lan else None,
+        "lan_ip": lan,
+        "port": port,
+        "tunnel": tunnel_url,
+        "tunnel_available": find_cloudflared() is not None,
+    })
+
+
+@app.route("/api/tunnel/start", methods=["POST"])
+def tunnel_start():
+    with _tunnel_lock:
+        if _tunnel["proc"] and _tunnel["proc"].poll() is None:
+            return jsonify({"url": _tunnel["url"], "status": "running"})
+    cf = find_cloudflared()
+    if not cf:
+        return jsonify({"error": "cloudflared not found. Run pclip-tunnel.bat once to download it."}), 404
+    port = int(os.environ.get("PORT", 8899))
+    log_path = os.path.join(os.environ.get("TEMP", os.path.dirname(__file__)), "pclip-cloudflared.log")
+    try:
+        log_f = open(log_path, "w")
+    except Exception:
+        log_f = subprocess.DEVNULL
+    proc = subprocess.Popen(
+        [cf, "tunnel", "--url", "http://127.0.0.1:" + str(port), "--no-autoupdate"],
+        stdout=log_f, stderr=subprocess.STDOUT,
+    )
+    with _tunnel_lock:
+        _tunnel["proc"] = proc
+        _tunnel["log"] = log_path
+        _tunnel["url"] = None
+
+    # Poll the log file for the public URL
+    url = None
+    for _ in range(80):  # up to ~16 seconds
+        time.sleep(0.2)
+        try:
+            with open(log_path, "r", errors="ignore") as f:
+                content = f.read()
+            m = re.search(r"https://[a-zA-Z0-9-]+\.trycloudflare\.com", content)
+            if m:
+                url = m.group(0)
+                break
+        except Exception:
+            pass
+    with _tunnel_lock:
+        _tunnel["url"] = url
+    if url:
+        return jsonify({"url": url, "status": "running"})
+    return jsonify({"error": "Timed out waiting for tunnel URL", "log": log_path}), 500
+
+
+@app.route("/api/tunnel/stop", methods=["POST"])
+def tunnel_stop():
+    with _tunnel_lock:
+        proc = _tunnel.pop("proc", None)
+        _tunnel["url"] = None
+    if proc:
+        try:
+            proc.terminate()
+            proc.wait(timeout=5)
+        except Exception:
+            try:
+                proc.kill()
+            except Exception:
+                pass
+    return jsonify({"status": "stopped"})
+
+
 def _open_browser_later(port):
     import webbrowser
-    import time
     import socket
     url = "http://127.0.0.1:" + str(port)
     try:
@@ -276,8 +431,6 @@ def _open_browser_later(port):
 
 
 def get_lan_ip():
-    # Best-effort: open a UDP socket to a public address to discover the
-    # outbound interface's LAN IP. No packet is actually sent.
     import socket
     try:
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -290,6 +443,9 @@ def get_lan_ip():
 
 
 if __name__ == "__main__":
+    cleanup_old_files()
+    cleanup_old_jobs()
+
     port = int(os.environ.get("PORT", 8899))
     host = os.environ.get("HOST", "0.0.0.0")
     if os.environ.get("PCLIP_AUTO_OPEN", "1") != "0":
@@ -300,6 +456,7 @@ if __name__ == "__main__":
     print("    this PC :  http://localhost:" + str(port))
     if lan and host != "127.0.0.1":
         print("    same WiFi: http://" + lan + ":" + str(port) + "   <- use this on your phone")
+    if COOKIES_FILE:
+        print("    cookies :  " + COOKIES_FILE)
     print("")
     app.run(host=host, port=port, use_reloader=False)
-
