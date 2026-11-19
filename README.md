@@ -88,20 +88,6 @@ Or with Docker Compose:
 docker compose up -d
 ```
 
-### Hostless (free web service)
-
-The included `hostless.yaml` deploys PClip as a Docker app:
-
-1. Push this repository to GitHub.
-2. Open the [Hostless dashboard](https://web.hostless.cloud).
-3. Create an app and connect this repository.
-4. Set the build system to **Docker**.
-5. Add these environment variables if needed:
-   - `PCLIP_AUTO_OPEN=0`
-   - `PCLIP_NO_UPDATE=1`
-
-Hostless supplies `PORT`, and PClip's Docker start command binds to it. The free-tier scaling settings use one 0.1-vCPU replica with 512 MB RAM.
-
 ---
 
 ## How to use it
