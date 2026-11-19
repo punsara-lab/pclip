@@ -7,7 +7,15 @@ import subprocess
 import threading
 import tempfile
 from urllib.parse import quote
-from flask import Flask, Response, request, jsonify, send_file, render_template, stream_with_context
+from flask import (
+    Flask,
+    Response,
+    jsonify,
+    render_template,
+    request,
+    send_file,
+    stream_with_context,
+)
 
 app = Flask(__name__)
 VERCEL_MODE = os.environ.get("VERCEL") == "1"
@@ -94,17 +102,26 @@ def _vercel_download(url, format_id, format_choice, title):
         except OSError:
             stderr_file.close()
             raise
+        if process.stdout is None:
+            stderr_file.close()
+            return jsonify({"error": "yt-dlp could not open a media stream"}), 500
+        first_chunk = process.stdout.read1(64 * 1024)
+        if not first_chunk:
+            return_code = process.wait()
+            process.stdout.close()
+            stderr_file.close()
+            if return_code:
+                return jsonify({"error": "The source did not provide the selected progressive MP4 format."}), 400
+            return jsonify({"error": "The source returned an empty MP4 stream."}), 502
 
         def stream_media():
             try:
-                if process.stdout is None:
-                    raise RuntimeError("yt-dlp did not open a media stream")
+                yield first_chunk
                 for chunk in iter(lambda: process.stdout.read(64 * 1024), b""):
                     yield chunk
                 return_code = process.wait()
                 if return_code:
-                    stderr_file.seek(0)
-                    app.logger.error("Vercel yt-dlp stream failed: %s", stderr_file.read()[-2000:])
+                    app.logger.error("Vercel yt-dlp stream failed with exit code %s", return_code)
             finally:
                 if process.poll() is None:
                     process.terminate()
