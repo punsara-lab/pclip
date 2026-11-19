@@ -1,29 +1,14 @@
-﻿import os
+import os
 import uuid
 import glob
 import json
 import sys
 import subprocess
 import threading
-import tempfile
-from urllib.parse import quote
-from flask import (
-    Flask,
-    Response,
-    jsonify,
-    render_template,
-    request,
-    send_file,
-    stream_with_context,
-)
+from flask import Flask, request, jsonify, send_file, render_template
 
 app = Flask(__name__)
-VERCEL_MODE = os.environ.get("VERCEL") == "1"
-DOWNLOAD_DIR = (
-    os.path.join(tempfile.gettempdir(), "pclip-downloads")
-    if VERCEL_MODE
-    else os.path.join(os.path.dirname(__file__), "downloads")
-)
+DOWNLOAD_DIR = os.path.join(os.path.dirname(__file__), "downloads")
 os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 
 jobs = {}
@@ -47,107 +32,6 @@ def fetch_info(url):
         return parse_ytdlp_json(result.stdout)
     except Exception:
         return None
-
-
-def _vercel_formats(info):
-    best_by_height = {}
-    for media_format in info.get("formats", []):
-        height = media_format.get("height")
-        if (
-            not height
-            or media_format.get("vcodec", "none") == "none"
-            or media_format.get("acodec", "none") == "none"
-            or media_format.get("ext") != "mp4"
-        ):
-            continue
-        tbr = media_format.get("tbr") or 0
-        if height not in best_by_height or tbr > (best_by_height[height].get("tbr") or 0):
-            best_by_height[height] = media_format
-    return [
-        {"id": media_format["format_id"], "label": str(height) + "p", "height": height}
-        for height, media_format in sorted(best_by_height.items(), reverse=True)
-    ]
-
-
-def _vercel_download(url, format_id, format_choice, title):
-    if format_choice == "audio":
-        return jsonify({"error": "MP3 conversion is unavailable on Vercel. Run PClip locally for audio downloads."}), 400
-    if not isinstance(format_id, str) or not format_id:
-        return jsonify({"error": "No progressive MP4 format is available. Try PClip locally for merged formats."}), 400
-
-    try:
-        info_result = subprocess.run(
-            [sys.executable, "-m", "yt_dlp", "--no-playlist", "-j", url],
-            capture_output=True,
-            text=True,
-            timeout=60,
-        )
-        if info_result.returncode != 0:
-            message = info_result.stderr.strip().split("\n")[-1]
-            return jsonify({"error": message or "Could not fetch media information"}), 400
-        info = parse_ytdlp_json(info_result.stdout)
-        allowed_formats = {item["id"] for item in _vercel_formats(info)}
-        if format_id not in allowed_formats:
-            return jsonify({"error": "That format cannot stream directly on Vercel. Try PClip locally for merged formats."}), 400
-
-        filename = "".join(c for c in (info.get("title") or title or "") if c not in r'\/:*?"<>|')
-        filename = filename.strip()[:100].strip() or "pclip"
-        stderr_file = tempfile.TemporaryFile(mode="w+t", encoding="utf-8")
-        command = [
-            sys.executable, "-m", "yt_dlp", "--no-playlist", "--quiet",
-            "--no-progress", "--no-warnings", "-f", format_id, "-o", "-", url,
-        ]
-        try:
-            process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=stderr_file)
-        except OSError:
-            stderr_file.close()
-            raise
-        if process.stdout is None:
-            stderr_file.close()
-            return jsonify({"error": "yt-dlp could not open a media stream"}), 500
-        first_chunk = process.stdout.read1(64 * 1024)
-        if not first_chunk:
-            return_code = process.wait()
-            process.stdout.close()
-            stderr_file.close()
-            if return_code:
-                return jsonify({"error": "The source did not provide the selected progressive MP4 format."}), 400
-            return jsonify({"error": "The source returned an empty MP4 stream."}), 502
-
-        def stream_media():
-            try:
-                yield first_chunk
-                for chunk in iter(lambda: process.stdout.read(64 * 1024), b""):
-                    yield chunk
-                return_code = process.wait()
-                if return_code:
-                    app.logger.error("Vercel yt-dlp stream failed with exit code %s", return_code)
-            finally:
-                if process.poll() is None:
-                    process.terminate()
-                    try:
-                        process.wait(timeout=5)
-                    except subprocess.TimeoutExpired:
-                        process.kill()
-                        process.wait()
-                if process.stdout:
-                    process.stdout.close()
-                stderr_file.close()
-
-        return Response(
-            stream_with_context(stream_media()),
-            mimetype="video/mp4",
-            headers={
-                "Content-Disposition": "attachment; filename=\"pclip.mp4\"; filename*=UTF-8''" + quote(filename + ".mp4"),
-                "Cache-Control": "no-store",
-                "X-Content-Type-Options": "nosniff",
-            },
-        )
-    except subprocess.TimeoutExpired:
-        return jsonify({"error": "Vercel download timed out. Try a shorter video or run PClip locally."}), 504
-    except (OSError, ValueError) as error:
-        app.logger.exception("Vercel download failed")
-        return jsonify({"error": "Could not prepare this download: " + str(error)}), 500
 
 
 def _try_write_mp3_id3(mp3_path, info):
@@ -261,7 +145,7 @@ def run_download(job_id, url, format_choice, format_id, audio_quality=None):
 
 @app.route("/")
 def index():
-    return render_template("index.html", vercel_limited=VERCEL_MODE)
+    return render_template("index.html")
 
 
 @app.route("/api/info", methods=["POST"])
@@ -276,21 +160,17 @@ def get_info():
         if result.returncode != 0:
             return jsonify({"error": result.stderr.strip().split("\n")[-1]}), 400
         info = parse_ytdlp_json(result.stdout)
-        if VERCEL_MODE:
-            formats = _vercel_formats(info)
-        else:
-            best_by_height = {}
-            for f in info.get("formats", []):
-                height = f.get("height")
-                if height and f.get("vcodec", "none") != "none":
-                    tbr = f.get("tbr") or 0
-                    if height not in best_by_height or tbr > (best_by_height[height].get("tbr") or 0):
-                        best_by_height[height] = f
-            formats = [
-                {"id": f["format_id"], "label": str(height) + "p", "height": height}
-                for height, f in best_by_height.items()
-            ]
-            formats.sort(key=lambda item: item["height"], reverse=True)
+        best_by_height = {}
+        for f in info.get("formats", []):
+            height = f.get("height")
+            if height and f.get("vcodec", "none") != "none":
+                tbr = f.get("tbr") or 0
+                if height not in best_by_height or tbr > (best_by_height[height].get("tbr") or 0):
+                    best_by_height[height] = f
+        formats = []
+        for height, f in best_by_height.items():
+            formats.append({"id": f["format_id"], "label": str(height) + "p", "height": height})
+        formats.sort(key=lambda x: x["height"], reverse=True)
         return jsonify({
             "title": info.get("title", ""),
             "thumbnail": info.get("thumbnail", ""),
@@ -327,19 +207,14 @@ def get_playlist_info():
 
 @app.route("/api/download", methods=["POST"])
 def start_download():
-    data = request.get_json(silent=True) or request.form or {}
-    url = data.get("url", "")
-    if not isinstance(url, str):
-        return jsonify({"error": "Invalid URL"}), 400
-    url = url.strip()
+    data = request.json
+    url = data.get("url", "").strip()
     format_choice = data.get("format", "video")
     format_id = data.get("format_id")
     title = data.get("title", "")
     audio_quality = data.get("audio_quality")
     if not url:
         return jsonify({"error": "No URL provided"}), 400
-    if VERCEL_MODE:
-        return _vercel_download(url, format_id, format_choice, title if isinstance(title, str) else "")
     job_id = uuid.uuid4().hex[:10]
     jobs[job_id] = {"status": "downloading", "url": url, "title": title}
     thread = threading.Thread(target=run_download, args=(job_id, url, format_choice, format_id, audio_quality))

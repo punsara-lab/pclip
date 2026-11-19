@@ -22,7 +22,7 @@ PClip is designed for one job: make media downloading feel fast, focused, and ef
 - Works with YouTube, TikTok, Instagram, X/Twitter, Reddit, Twitch, Vimeo, SoundCloud, and 1000+ supported sites through `yt-dlp`
 - Gives you quick format selection for video and audio
 - Handles playlist links without friction
-- Keeps the local workflow private; Vercel can stream supported MP4 files directly to the browser
+- Keeps the workflow local and private
 - Ships with a polished interface that feels like a creator tool, not a broken utility app
 
 This project is intentionally lightweight: no heavy framework, no build pipeline, no database, no clutter.
@@ -41,7 +41,7 @@ This project is intentionally lightweight: no heavy framework, no build pipeline
 - Embedded cover art and ID3 metadata for audio
 - Dark-mode, glass-panel interface with future-cyber styling
 - Local-first workflow for privacy and control
-- Runs on Windows, macOS, Linux, Docker, and Vercel
+- Runs on Windows, macOS, Linux, and Docker
 
 ---
 
@@ -88,18 +88,6 @@ Or with Docker Compose:
 docker compose up -d
 ```
 
-### Vercel
-
-Import this repository into Vercel and deploy with the default Python settings. Vercel detects the Flask `app` in `app.py`. No database or Vercel Blob token is needed.
-
-Vercel mode streams progressive MP4 formats directly from `yt-dlp` to the browser, which saves the file to the user's device. Media files are not staged or stored on Vercel. The function is configured for up to 300 seconds; longer downloads can time out. MP3 conversion and formats that need FFmpeg to merge separate streams remain available in the local or Docker version.
-
-Local development keeps using the project `downloads/` folder and the existing background-job flow. To test Vercel behavior locally, install the Vercel CLI and run:
-
-```bash
-vercel dev
-```
-
 ---
 
 ## How to use it
@@ -110,7 +98,7 @@ vercel dev
 4. Optionally override quality or bitrate per item.
 5. Download individually or use Download All for the batch.
 
-Locally, files are saved into the `downloads/` folder, with MP3s tagged and cover art embedded. On Vercel, progressive MP4 files stream directly to the browser instead.
+Files are saved into the local `downloads/` folder, with MP3s tagged and cover art embedded.
 
 ---
 
@@ -123,7 +111,7 @@ Locally, files are saved into the `downloads/` folder, with MP3s tagged and cove
 | Download engine | `yt-dlp` |
 | Audio metadata | `mutagen` |
 | Media conversion | FFmpeg |
-| Deployment | Local runtime + Docker + Vercel streaming |
+| Deployment | Local runtime + Docker-ready |
 
 Core dependencies:
 
@@ -143,7 +131,6 @@ mutagen
 | `HOST` | `127.0.0.1` | Bind address |
 | `PCLIP_AUTO_OPEN` | `1` | Open browser automatically |
 | `PCLIP_NO_UPDATE` | unset | Skip `yt-dlp` auto-update on startup |
-| `VERCEL` | set by Vercel | Use browser-streamed downloads instead of local disk and background jobs |
 
 ---
 
@@ -161,7 +148,6 @@ pclip/
 ├── pclip.sh                # macOS/Linux launcher
 ├── Dockerfile
 ├── docker-compose.yml
-├── vercel.json             # Vercel function configuration
 ├── requirements.txt
 ├── LICENSE
 ├── README.md
