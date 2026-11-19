@@ -22,7 +22,7 @@ PClip is designed for one job: make media downloading feel fast, focused, and ef
 - Works with YouTube, TikTok, Instagram, X/Twitter, Reddit, Twitch, Vimeo, SoundCloud, and 1000+ supported sites through `yt-dlp`
 - Gives you quick format selection for video and audio
 - Handles playlist links without friction
-- Keeps the workflow local and private
+- Keeps the local workflow private; Vercel can stream supported MP4 files directly to the browser
 - Ships with a polished interface that feels like a creator tool, not a broken utility app
 
 This project is intentionally lightweight: no heavy framework, no build pipeline, no database, no clutter.
@@ -41,7 +41,7 @@ This project is intentionally lightweight: no heavy framework, no build pipeline
 - Embedded cover art and ID3 metadata for audio
 - Dark-mode, glass-panel interface with future-cyber styling
 - Local-first workflow for privacy and control
-- Runs on Windows, macOS, Linux, and Docker
+- Runs on Windows, macOS, Linux, Docker, and Vercel
 
 ---
 
@@ -143,6 +143,7 @@ mutagen
 | `HOST` | `127.0.0.1` | Bind address |
 | `PCLIP_AUTO_OPEN` | `1` | Open browser automatically |
 | `PCLIP_NO_UPDATE` | unset | Skip `yt-dlp` auto-update on startup |
+| `VERCEL` | set by Vercel | Use browser-streamed downloads instead of local disk and background jobs |
 
 ---
 
