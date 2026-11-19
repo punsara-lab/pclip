@@ -88,6 +88,18 @@ Or with Docker Compose:
 docker compose up -d
 ```
 
+### Vercel
+
+Import this repository into Vercel and deploy with the default Python settings. Vercel detects the Flask `app` in `app.py`. No database or Vercel Blob token is needed.
+
+Vercel mode streams progressive MP4 formats directly from `yt-dlp` to the browser, which saves the file to the user's device. Media files are not staged or stored on Vercel. The function is configured for up to 300 seconds; longer downloads can time out. MP3 conversion and formats that need FFmpeg to merge separate streams remain available in the local or Docker version.
+
+Local development keeps using the project `downloads/` folder and the existing background-job flow. To test Vercel behavior locally, install the Vercel CLI and run:
+
+```bash
+vercel dev
+```
+
 ---
 
 ## How to use it
@@ -98,7 +110,7 @@ docker compose up -d
 4. Optionally override quality or bitrate per item.
 5. Download individually or use Download All for the batch.
 
-Files are saved into the local `downloads/` folder, with MP3s tagged and cover art embedded.
+Locally, files are saved into the `downloads/` folder, with MP3s tagged and cover art embedded. On Vercel, progressive MP4 files stream directly to the browser instead.
 
 ---
 
@@ -111,7 +123,7 @@ Files are saved into the local `downloads/` folder, with MP3s tagged and cover a
 | Download engine | `yt-dlp` |
 | Audio metadata | `mutagen` |
 | Media conversion | FFmpeg |
-| Deployment | Local runtime + Docker-ready |
+| Deployment | Local runtime + Docker + Vercel streaming |
 
 Core dependencies:
 
@@ -148,6 +160,7 @@ pclip/
 ├── pclip.sh                # macOS/Linux launcher
 ├── Dockerfile
 ├── docker-compose.yml
+├── vercel.json             # Vercel function configuration
 ├── requirements.txt
 ├── LICENSE
 ├── README.md
