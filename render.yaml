@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: pclip
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /
+    envVars:
+      - key: PCLIP_AUTO_OPEN
+        value: "0"
+      - key: PCLIP_NO_UPDATE
+        value: "1"

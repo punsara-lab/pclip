@@ -88,6 +88,16 @@ Or with Docker Compose:
 docker compose up -d
 ```
 
+### Render (free web service)
+
+The included `render.yaml` Blueprint can deploy PClip as a Docker web service:
+
+1. Push this repository to GitHub.
+2. In Render, choose **New > Blueprint** and select the repository.
+3. Render will detect `render.yaml` and create a free `pclip` web service.
+
+The container uses Render's `PORT` automatically and disables browser auto-open.
+
 ---
 
 ## How to use it
