@@ -88,6 +88,20 @@ Or with Docker Compose:
 docker compose up -d
 ```
 
+### Vercel
+
+Import this repository into Vercel and deploy with the default Python settings. Vercel detects the Flask `app` in `app.py`; no storage token or database is required.
+
+Vercel Functions use temporary storage and have a response-size limit, so Vercel mode is intentionally limited to progressive MP4 files up to 4 MiB. MP3 conversion and larger downloads are unavailable there. Supported files are returned directly to the browser and saved using its normal download flow; they are not stored persistently on Vercel. Use the local or Docker version for full downloads.
+
+Local development keeps its existing behavior: media is written to the project `downloads/` folder and served from the local Flask process.
+
+To test the deployed setup locally, install the Vercel CLI and run:
+
+```bash
+vercel dev
+```
+
 ---
 
 ## How to use it
@@ -98,7 +112,7 @@ docker compose up -d
 4. Optionally override quality or bitrate per item.
 5. Download individually or use Download All for the batch.
 
-Files are saved into the local `downloads/` folder, with MP3s tagged and cover art embedded.
+Locally, files are saved into the `downloads/` folder, with MP3s tagged and cover art embedded. On Vercel, supported small MP4 files are saved by your browser instead.
 
 ---
 
@@ -111,7 +125,7 @@ Files are saved into the local `downloads/` folder, with MP3s tagged and cover a
 | Download engine | `yt-dlp` |
 | Audio metadata | `mutagen` |
 | Media conversion | FFmpeg |
-| Deployment | Local runtime + Docker-ready |
+| Deployment | Local runtime + Docker + Vercel (limited mode) |
 
 Core dependencies:
 
@@ -148,6 +162,7 @@ pclip/
 ├── pclip.sh                # macOS/Linux launcher
 ├── Dockerfile
 ├── docker-compose.yml
+├── vercel.json             # Vercel function limits
 ├── requirements.txt
 ├── LICENSE
 ├── README.md

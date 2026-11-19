@@ -256,6 +256,16 @@
       backdrop-filter: blur(10px);
       box-shadow: inset 0 1px 0 rgba(255,255,255,0.02);
     }
+    .hosting-notice {
+      margin: 0 0 18px;
+      padding: 11px 14px;
+      border: 1px solid rgba(105, 231, 255, 0.24);
+      border-radius: 12px;
+      background: rgba(105, 231, 255, 0.06);
+      color: var(--fg-muted);
+      font-size: 0.75rem;
+      line-height: 1.6;
+    }
     .kbd {
       font-family: 'JetBrains Mono', monospace;
       background: rgba(255,255,255,0.06);
@@ -308,6 +318,7 @@
       border-radius: 10px;
     }
     .pill:hover:not(.active) { color: var(--fg); background: rgba(255,255,255,0.04); }
+    .pill:disabled { opacity: 0.45; cursor: not-allowed; }
     .pill.active {
       background: linear-gradient(135deg, rgba(105, 231, 255, 0.26), rgba(139, 92, 246, 0.8));
       color: #f4fbff;
@@ -1032,6 +1043,11 @@
       <h1>P<span>Clip</span></h1>
       <p>future-ready media flow <strong>for creators</strong> · 1000+ sites</p>
     </div>
+    {% if vercel_limited %}
+    <div class="hosting-notice">
+      Vercel streams progressive MP4 files directly to your browser, which saves them to this device. PClip does not keep a server copy. MP3 conversion and formats requiring merging are available in the local app.
+    </div>
+    {% endif %}
     <div class="input-wrap" id="inputWrap">
       <textarea id="urls" placeholder="Paste one or more URLs..." rows="2" autofocus></textarea>
       <button class="clear-btn" id="clearBtn" onclick="clearUrls()" title="Clear all">
@@ -1047,7 +1063,7 @@
         <span class="control-label">Format</span>
         <div class="pill-group" id="formatGroup">
           <button class="pill active" data-format="video" onclick="setFormat(this, 'video')" title="MP4 video">MP4</button>
-          <button class="pill" data-format="audio" onclick="setFormat(this, 'audio')" title="MP3 audio with cover art">MP3</button>
+          <button class="pill" data-format="audio" onclick="setFormat(this, 'audio')" title="{% if vercel_limited %}MP3 conversion is unavailable on Vercel{% else %}MP3 audio with cover art{% endif %}" {% if vercel_limited %}disabled{% endif %}>MP3</button>
         </div>
       </div>
       <div class="control-block" id="audioQualityBlock" style="display:none">
@@ -1081,6 +1097,7 @@
   </div>
   <script>
     'use strict';
+    const VERCEL_MODE = {{ 'true' if vercel_limited else 'false' }};
     const AUDIO_QUALITIES = [
       { id: '128K', label: '128', hint: 'Small' },
       { id: '192K', label: '192', hint: 'Good' },
@@ -1109,6 +1126,7 @@
       block.style.display = show ? 'flex' : 'none';
     }
     function setFormat(btn, format) {
+      if (VERCEL_MODE && format === 'audio') return;
       $$('#formatGroup .pill').forEach(b => b.classList.toggle('active', b === btn));
       state.format = format;
       showAudioUI(format === 'audio');
@@ -1182,6 +1200,7 @@
       for (const c of state.cards) {
         if (counts[c.status] != null) counts[c.status]++;
         else if (c.status === 'info-error') counts.error++;
+        else if (c.status === 'unavailable') counts.error++;
         else if (c.status === 'loading') counts.downloading++;
       }
       $('#stat-ready').textContent = counts.ready;
@@ -1278,8 +1297,12 @@
               formats: data.formats || [],
               selectedFormatId: (data.formats && data.formats[0]) ? data.formats[0].id : null,
               selectedAudioQuality: state.audioQuality,
+              ...(VERCEL_MODE && !(data.formats || []).length
+                ? { status: 'unavailable', error: 'No progressive MP4 format is available. Try PClip locally for merged formats.' }
+                : {}),
             };
-            anyReady = true;
+            if (state.cards[idx].status === 'ready') anyReady = true;
+            else anyError = true;
           }
         } catch (err) {
           state.cards[idx] = { ...state.cards[idx], status: 'info-error', error: err.message };
@@ -1358,12 +1381,14 @@
       let actionHtml = '';
       if (c.status === 'ready') {
         actionHtml = '<button class="card-dl-btn" onclick="dlCard(' + idx + ')">Download</button>' + chips;
+      } else if (c.status === 'unavailable') {
+        actionHtml = '<span class="card-status error">' + esc(c.error) + '</span>';
       } else if (c.status === 'downloading') {
         actionHtml = '<span class="card-status downloading"><span class="spin"></span>Downloading...</span>';
       } else if (c.status === 'done') {
         actionHtml =
-          '<button class="card-dl-btn done" onclick="saveCard(' + idx + ')">Save</button>' +
-          '<span class="card-status done">' + esc(c.filename || '') + '</span>';
+          '<button class="card-dl-btn done" onclick="saveCard(' + idx + ')">' + (c.browserDownload ? 'Download again' : 'Save') + '</button>' +
+          '<span class="card-status done">' + esc(c.browserDownload ? 'Sent to browser · ' + (c.filename || '') : c.filename || '') + '</span>';
       } else if (c.status === 'error') {
         actionHtml =
           '<button class="card-dl-btn" onclick="dlCard(' + idx + ')">Retry</button>' +
@@ -1395,6 +1420,22 @@
     }
     async function dlCard(idx) {
       const c = state.cards[idx];
+      if (VERCEL_MODE) {
+        c.downloadFields = {
+          url: c.url,
+          format: state.format,
+          format_id: c.selectedFormatId || '',
+          title: c.title || '',
+        };
+        c.filename = ((c.title || 'pclip').replace(/[\\/:*?"<>|]/g, '').trim().slice(0, 100) || 'pclip') + '.mp4';
+        c.browserDownload = true;
+        c.status = 'done';
+        c.error = null;
+        renderCard(idx);
+        updateStats();
+        submitBrowserDownload(idx);
+        return;
+      }
       c.status = 'downloading';
       c.error = null;
       renderCard(idx);
@@ -1411,22 +1452,82 @@
             title: c.title || '',
           }),
         });
-        const data = await res.json();
-        if (data.error) {
+        const contentType = res.headers.get('content-type') || '';
+        if (contentType.includes('application/json')) {
+          const data = await res.json();
+          if (data.error || !res.ok) {
+            c.status = 'error';
+            c.error = data.error || 'Download failed';
+            renderCard(idx);
+            updateStats();
+            return;
+          }
+          c.jobId = data.job_id;
+          startPoll(idx);
+          return;
+        }
+        if (!res.ok) throw new Error('Download failed with status ' + res.status);
+        c.fileBlob = await res.blob();
+        if (c.fileBlob.size === 0) {
           c.status = 'error';
-          c.error = data.error;
+          c.error = 'The server returned an empty file';
           renderCard(idx);
           updateStats();
           return;
         }
-        c.jobId = data.job_id;
-        startPoll(idx);
+        c.filename = ((c.title || 'pclip').replace(/[\\/:*?"<>|]/g, '').trim().slice(0, 100) || 'pclip') + '.mp4';
+        c.status = 'done';
+        renderCard(idx);
+        updateStats();
+        saveCard(idx);
       } catch (err) {
         c.status = 'error';
         c.error = err.message;
         renderCard(idx);
         updateStats();
       }
+    }
+    function submitBrowserDownload(idx) {
+      const c = state.cards[idx];
+      let frame = document.getElementById('pclip-download-frame');
+      if (!frame) {
+        frame = document.createElement('iframe');
+        frame.id = 'pclip-download-frame';
+        frame.name = frame.id;
+        frame.title = 'PClip download';
+        frame.hidden = true;
+        document.body.appendChild(frame);
+      }
+      frame.onload = () => {
+        try {
+          const text = frame.contentDocument.body.innerText.trim();
+          if (!text) return;
+          const result = JSON.parse(text);
+          if (result.error) {
+            c.status = 'error';
+            c.error = result.error;
+            renderCard(idx);
+            updateStats();
+          }
+        } catch (error) {
+          console.error('Could not read the download response', error);
+        }
+      };
+      const form = document.createElement('form');
+      form.method = 'POST';
+      form.action = '/api/download';
+      form.target = frame.name;
+      for (const [name, value] of Object.entries(c.downloadFields)) {
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = name;
+        input.value = value;
+        form.appendChild(input);
+      }
+      document.body.appendChild(form);
+      form.submit();
+      form.remove();
+      toast('Download sent to your browser');
     }
     function startPoll(idx) {
       const c = state.cards[idx];
@@ -1470,14 +1571,22 @@
     }
     function saveCard(idx) {
       const c = state.cards[idx];
-      if (!c.jobId) return;
+      if (c.downloadFields) {
+        submitBrowserDownload(idx);
+        return;
+      }
       const a = document.createElement('a');
-      a.href = '/api/file/' + c.jobId;
+      const blobUrl = c.fileBlob ? URL.createObjectURL(c.fileBlob) : null;
+      if (!c.jobId && !blobUrl) return;
+      a.href = blobUrl || '/api/file/' + c.jobId;
       a.download = c.filename || '';
       a.rel = 'noopener';
       document.body.appendChild(a);
       a.click();
-      setTimeout(() => a.remove(), 500);
+      setTimeout(() => {
+        a.remove();
+        if (blobUrl) URL.revokeObjectURL(blobUrl);
+      }, 1000);
     }
     async function dlAll() {
       const btn = $('.dl-all-btn');
