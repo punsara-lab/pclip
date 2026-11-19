@@ -41,7 +41,7 @@ This project is intentionally lightweight: no heavy framework, no build pipeline
 - Embedded cover art and ID3 metadata for audio
 - Dark-mode, glass-panel interface with future-cyber styling
 - Local-first workflow for privacy and control
-- Runs on Windows, macOS, Linux, and Docker
+- Runs locally on Windows, macOS, and Linux
 
 ---
 
@@ -75,32 +75,7 @@ Then open:
 http://localhost:8899
 ```
 
-### Docker
-
-```bash
-docker build -t pclip .
-docker run -p 8899:8899 -v pclip-downloads:/app/downloads pclip
-```
-
-Or with Docker Compose:
-
-```bash
-docker compose up -d
-```
-
-### Vercel
-
-Import this repository into Vercel and deploy with the default Python settings. Vercel detects the Flask `app` in `app.py`; no storage token or database is required.
-
-Vercel Functions use temporary storage and have a response-size limit, so Vercel mode is intentionally limited to progressive MP4 files up to 4 MiB. MP3 conversion and larger downloads are unavailable there. Supported files are returned directly to the browser and saved using its normal download flow; they are not stored persistently on Vercel. Use the local or Docker version for full downloads.
-
-Local development keeps its existing behavior: media is written to the project `downloads/` folder and served from the local Flask process.
-
-To test the deployed setup locally, install the Vercel CLI and run:
-
-```bash
-vercel dev
-```
+PClip runs only on this computer at `127.0.0.1`; it is not configured for remote hosting or network access.
 
 ---
 
@@ -112,7 +87,7 @@ vercel dev
 4. Optionally override quality or bitrate per item.
 5. Download individually or use Download All for the batch.
 
-Locally, files are saved into the `downloads/` folder, with MP3s tagged and cover art embedded. On Vercel, supported small MP4 files are saved by your browser instead.
+Files are saved into the `downloads/` folder, with MP3s tagged and cover art embedded.
 
 ---
 
@@ -125,7 +100,7 @@ Locally, files are saved into the `downloads/` folder, with MP3s tagged and cove
 | Download engine | `yt-dlp` |
 | Audio metadata | `mutagen` |
 | Media conversion | FFmpeg |
-| Deployment | Local runtime + Docker + Vercel (limited mode) |
+| Runtime | Local Flask development server |
 
 Core dependencies:
 
@@ -142,7 +117,6 @@ mutagen
 | Variable | Default | Purpose |
 |---|---:|---|
 | `PORT` | `8899` | App port |
-| `HOST` | `127.0.0.1` | Bind address |
 | `PCLIP_AUTO_OPEN` | `1` | Open browser automatically |
 | `PCLIP_NO_UPDATE` | unset | Skip `yt-dlp` auto-update on startup |
 
@@ -160,9 +134,6 @@ pclip/
 ├── downloads/              # Downloaded media output
 ├── pclip.bat               # Windows launcher
 ├── pclip.sh                # macOS/Linux launcher
-├── Dockerfile
-├── docker-compose.yml
-├── vercel.json             # Vercel function limits
 ├── requirements.txt
 ├── LICENSE
 ├── README.md
